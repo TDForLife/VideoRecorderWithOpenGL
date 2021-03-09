@@ -77,7 +77,7 @@ public class RecordingActivity2 extends AppCompatActivity implements
         mSaveVideoPath = Environment.getExternalStorageDirectory().getPath() + "/live_save_video" + System.currentTimeMillis() + ".mp4";
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_video_record);
-        mTextureView = (AspectTextureView) findViewById(R.id.preview_textureview);
+        mTextureView = (AspectTextureView) findViewById(R.id.preview_texture_view);
         mTextureView.setKeepScreenOn(true);
         mTextureView.setSurfaceTextureListener(this);
 

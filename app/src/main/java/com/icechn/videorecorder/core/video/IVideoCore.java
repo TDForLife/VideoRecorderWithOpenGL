@@ -10,7 +10,9 @@ import com.icechn.videorecorder.model.RecordConfig;
  * Created by lake on 16-5-25.
  */
 public interface IVideoCore {
+
     int OVERWATCH_TEXTURE_ID = 10;
+
     boolean prepare(RecordConfig resConfig);
 
     void updateCamTexture(SurfaceTexture camTex);

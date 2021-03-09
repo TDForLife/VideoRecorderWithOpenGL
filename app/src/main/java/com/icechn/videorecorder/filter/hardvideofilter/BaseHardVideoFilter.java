@@ -18,7 +18,7 @@ public class BaseHardVideoFilter {
     public void onInit(int videoWidth, int videoHeight) {
         outVideoWidth = videoWidth;
         outVideoHeight = videoHeight;
-        drawIndecesBuffer = GLHelper.getDrawIndecesBuffer();
+        drawIndecesBuffer = GLHelper.getDrawIndexesBuffer();
     }
 
     public void onDraw(final int cameraTexture, final int targetFrameBuffer, final FloatBuffer shapeBuffer, final FloatBuffer textrueBuffer) {

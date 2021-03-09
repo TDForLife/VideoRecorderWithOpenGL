@@ -15,6 +15,7 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
+import android.util.Log;
 import android.view.Surface;
 
 import com.icechn.videorecorder.client.CallbackDelivery;
@@ -27,7 +28,7 @@ import com.icechn.videorecorder.filter.hardvideofilter.BaseHardVideoFilter;
 import com.icechn.videorecorder.model.MediaMakerConfig;
 import com.icechn.videorecorder.model.MediaCodecGLWapper;
 import com.icechn.videorecorder.model.MediaConfig;
-import com.icechn.videorecorder.model.OffScreenGLWapper;
+import com.icechn.videorecorder.model.OffScreenGLWrapper;
 import com.icechn.videorecorder.model.RecordConfig;
 import com.icechn.videorecorder.model.ScreenGLWapper;
 import com.icechn.videorecorder.model.Size;
@@ -42,10 +43,10 @@ import java.util.concurrent.locks.ReentrantLock;
  * Created by lake on 16-5-24.
  */
 public class VideoCore implements IVideoCore {
-    MediaMakerConfig mediaMakerConfig;
+    private MediaMakerConfig mediaMakerConfig;
     private final Object syncOp = new Object();
-    //filter
-    private Lock lockVideoFilter = null;
+    // filter
+    private Lock lockVideoFilter;
     private BaseHardVideoFilter videoFilter;
     private MediaCodec dstVideoEncoder;
     private MediaFormat dstVideoFormat;
@@ -97,7 +98,8 @@ public class VideoCore implements IVideoCore {
             synchronized (syncIsLooping) {
                 if (!isPreviewing && !isStreaming) {
                     videoGLHander.removeMessages(VideoGLHandler.WHAT_DRAW);
-                    videoGLHander.sendMessageDelayed(videoGLHander.obtainMessage(VideoGLHandler.WHAT_DRAW, SystemClock.uptimeMillis() + loopingInterval), loopingInterval);
+                    videoGLHander.sendMessageDelayed(videoGLHander.obtainMessage(VideoGLHandler.WHAT_DRAW,
+                            SystemClock.uptimeMillis() + loopingInterval), loopingInterval);
                 }
                 isPreviewing = true;
             }
@@ -142,7 +144,7 @@ public class VideoCore implements IVideoCore {
     public void updateCamTexture(SurfaceTexture camTex) {
         synchronized (syncOp) {
             if (videoGLHander != null) {
-                videoGLHander.updateCamTexture(camTex);
+                videoGLHander.updateCameraTexture(camTex);
             }
         }
     }
@@ -212,6 +214,7 @@ public class VideoCore implements IVideoCore {
     }
 
     private class VideoGLHandler extends Handler {
+
         static final int WHAT_INIT = 0x001;
         static final int WHAT_UNINIT = 0x002;
         static final int WHAT_FRAME = 0x003;
@@ -224,44 +227,48 @@ public class VideoCore implements IVideoCore {
         static final int WHAT_RESET_BITRATE = 0x300;
         static final int WHAT_START_RECORDING = 0x500;
         static final int WHAT_STOP_RECORDING = 0x600;
+
+        static final int FILTER_LOCK_TOLERATION = 3; // 3ms
+
         private Size screenSize;
-        //=========================
-        public static final int FILTER_LOCK_TOLERATION = 3;//3ms
-        private final Object syncFrameNum = new Object();
+        private final Object syncFrameNumObj = new Object();
         private int frameNum = 0;
-        //gl stuff
-        private final Object syncCameraTex = new Object();
+
+        // gl stuff
+        private final Object syncCameraTexObj = new Object();
         private SurfaceTexture cameraTexture;
-
-        private SurfaceTexture screenTexture;
-
+        private SurfaceTexture previewScreenTexture;
         private MediaCodecGLWapper mediaCodecGLWapper;
-        private ScreenGLWapper screenGLWapper;
-        private OffScreenGLWapper offScreenGLWapper;
+        private ScreenGLWapper previewScreenGLWapper;
+        private OffScreenGLWrapper offScreenGLWrapper;
 
         private int sample2DFrameBuffer;
         private int sample2DFrameBufferTexture;
         private int frameBuffer;
         private int frameBufferTexture;
+
         private FloatBuffer shapeVerticesBuffer;
         private FloatBuffer mediaCodecTextureVerticesBuffer;
         private FloatBuffer screenTextureVerticesBuffer;
-        private int currCamera;
-        private final Object syncCameraTextureVerticesBuffer = new Object();
         private FloatBuffer camera2dTextureVerticesBuffer;
         private FloatBuffer cameraTextureVerticesBuffer;
-        private ShortBuffer drawIndecesBuffer;
-        private BaseHardVideoFilter innerVideoFilter = null;
+        private ShortBuffer drawIndexesBuffer;
+
+        private int currCamera;
+        private final Object syncCameraBufferObj = new Object();
+
+        private BaseHardVideoFilter innerVideoFilter;
         private int directionFlag;
-        //sender
+
+        // sender
         private VideoSenderThread videoSenderThread;
 
         boolean hasNewFrame = false;
-        public boolean dropNextFrame = false;
+        boolean dropNextFrame = false;
 
         public VideoGLHandler(Looper looper) {
             super(looper);
-            screenGLWapper = null;
+            previewScreenGLWapper = null;
             mediaCodecGLWapper = null;
             screenSize = new Size(1, 1);
             initBuffer();
@@ -271,9 +278,9 @@ public class VideoCore implements IVideoCore {
         public void handleMessage(Message msg) {
             switch (msg.what) {
                 case WHAT_FRAME: {
-                    GLHelper.makeCurrent(offScreenGLWapper);
-                    synchronized (syncFrameNum) {
-                        synchronized (syncCameraTex) {
+                    GLHelper.makeCurrent(offScreenGLWrapper);
+                    synchronized (syncFrameNumObj) {
+                        synchronized (syncCameraTexObj) {
                             if (cameraTexture != null) {
                                 while (frameNum != 0) {
                                     cameraTexture.updateTexImage();
@@ -313,7 +320,7 @@ public class VideoCore implements IVideoCore {
                     if (hasNewFrame) {
                         drawFrameBuffer();
                         drawMediaCodec(time * 1000000);
-                        drawScreen();
+                        drawPreviewScreen();
                         hasNewFrame = false;
                     }
                 }
@@ -329,20 +336,20 @@ public class VideoCore implements IVideoCore {
                         innerVideoFilter = null;
                     }
                     lockVideoFilter.unlock();
-                    uninitOffScreenGL();
+                    destroyOffScreenGL();
                 }
                 break;
                 case WHAT_START_PREVIEW: {
-                    initScreenGL((SurfaceTexture) msg.obj);
+                    initPreviewScreenGL((SurfaceTexture) msg.obj);
                     updatePreviewSize(msg.arg1, msg.arg2);
                 }
                 break;
                 case WHAT_STOP_PREVIEW: {
-                    uninitScreenGL();
+                    destroyPreviewScreenGL();
                     boolean releaseTexture = (boolean) msg.obj;
                     if (releaseTexture) {
-                        screenTexture.release();
-                        screenTexture = null;
+                        previewScreenTexture.release();
+                        previewScreenTexture = null;
                     }
                 }
                 break;
@@ -361,20 +368,7 @@ public class VideoCore implements IVideoCore {
                     videoSenderThread.start();
                 }
                 break;
-                case WHAT_STOP_RECORDING: {
-                    videoSenderThread.quit();
-                    try {
-                        videoSenderThread.join();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    videoSenderThread = null;
-                    uninitMediaCodecGL();
-                    dstVideoEncoder.stop();
-                    dstVideoEncoder.release();
-                    dstVideoEncoder = null;
-                }
-                break;
+                case WHAT_STOP_RECORDING:
                 case WHAT_STOP_STREAMING: {
                     videoSenderThread.quit();
                     try {
@@ -383,7 +377,7 @@ public class VideoCore implements IVideoCore {
                         e.printStackTrace();
                     }
                     videoSenderThread = null;
-                    uninitMediaCodecGL();
+                    destroyMediaCodecGL();
                     dstVideoEncoder.stop();
                     dstVideoEncoder.release();
                     dstVideoEncoder = null;
@@ -405,7 +399,7 @@ public class VideoCore implements IVideoCore {
                     updateCameraIndex(currCamera);
                     resetFrameBuff();
                     if (mediaCodecGLWapper != null) {
-                        uninitMediaCodecGL();
+                        destroyMediaCodecGL();
                         dstVideoEncoder.stop();
                         dstVideoEncoder.release();
                         dstVideoEncoder = MediaCodecHelper.createHardVideoMediaCodec(mediaMakerConfig, dstVideoFormat);
@@ -430,50 +424,63 @@ public class VideoCore implements IVideoCore {
             }
         }
 
-
+        /**
+         * 将 Camera 预览数据通过 cameraTexture 纹理绘制到 OffScreen FrameBuffer
+         *
+         * @param cameraTexture
+         */
         private void drawSample2DFrameBuffer(SurfaceTexture cameraTexture) {
+            // 将 sample2DFrameBuffer FBO 绑定到当前帧缓冲，此处为读写绑定，由于当前帧缓冲并非绑定到默认的帧缓冲，
+            // 所以对当前帧缓冲的渲染并不会对窗口的视频输出产生任何影响，称为离屏渲染
             GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, sample2DFrameBuffer);
-            GLES20.glUseProgram(offScreenGLWapper.cam2dProgram);
+            // 启用 cam2Program 作为可执行的程序
+            GLES20.glUseProgram(offScreenGLWrapper.camera2dProgram);
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+            // 把一个纹理附加到帧缓冲上的时候，所有渲染命令会写入到纹理上
+            // 在此之前 OVERWATCH_TEXTURE_ID 纹理 ID 已经作为纹理传入 CameraTexture 接收 Camera 的预览数据了
             GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, OVERWATCH_TEXTURE_ID);
-            GLES20.glUniform1i(offScreenGLWapper.cam2dTextureLoc, 0);
-            synchronized (syncCameraTextureVerticesBuffer) {
-                GLHelper.enableVertex(offScreenGLWapper.cam2dPostionLoc, offScreenGLWapper.cam2dTextureCoordLoc,
+            GLES20.glUniform1i(offScreenGLWrapper.cam2dTextureLocation, 0);
+            synchronized (syncCameraBufferObj) {
+                GLHelper.enableVertex(offScreenGLWrapper.cam2dPositionLocation, offScreenGLWrapper.cam2dTextureCoordsLocation,
                         shapeVerticesBuffer, camera2dTextureVerticesBuffer);
             }
             float[] textureMatrix = new float[16];
             cameraTexture.getTransformMatrix(textureMatrix);
-            GLES20.glUniformMatrix4fv(offScreenGLWapper.cam2dTextureMatrix, 1, false, textureMatrix, 0);
+            GLES20.glUniformMatrix4fv(offScreenGLWrapper.cam2dTextureMatrixLocation, 1, false, textureMatrix, 0);
             GLES20.glViewport(0, 0, mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
+
             doGLDraw();
+
             GLES20.glFinish();
-            GLHelper.disableVertex(offScreenGLWapper.cam2dPostionLoc, offScreenGLWapper.cam2dTextureCoordLoc);
+            GLHelper.disableVertex(offScreenGLWrapper.cam2dPositionLocation, offScreenGLWrapper.cam2dTextureCoordsLocation);
             GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0);
+            // 卸载当前执行的 Program
             GLES20.glUseProgram(0);
+            // 执行完所需操作后，通过绑定为 0 来使默认帧缓冲被激活
             GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
         }
 
         private void drawOriginFrameBuffer() {
             GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, frameBuffer);
-            GLES20.glUseProgram(offScreenGLWapper.camProgram);
+            GLES20.glUseProgram(offScreenGLWrapper.cameraProgram);
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, sample2DFrameBufferTexture);
-            GLES20.glUniform1i(offScreenGLWapper.camTextureLoc, 0);
-            synchronized (syncCameraTextureVerticesBuffer) {
-                GLHelper.enableVertex(offScreenGLWapper.camPostionLoc, offScreenGLWapper.camTextureCoordLoc,
+            GLES20.glUniform1i(offScreenGLWrapper.camTextureLocation, 0);
+            synchronized (syncCameraBufferObj) {
+                GLHelper.enableVertex(offScreenGLWrapper.camPositionLocation, offScreenGLWrapper.camTextureCoordsLocation,
                         shapeVerticesBuffer, cameraTextureVerticesBuffer);
             }
             GLES20.glViewport(0, 0, mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
             doGLDraw();
             GLES20.glFinish();
-            GLHelper.disableVertex(offScreenGLWapper.camPostionLoc, offScreenGLWapper.camTextureCoordLoc);
+            GLHelper.disableVertex(offScreenGLWrapper.camPositionLocation, offScreenGLWrapper.camTextureCoordsLocation);
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
             GLES20.glUseProgram(0);
             GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
         }
 
         private void drawFrameBuffer() {
-            GLHelper.makeCurrent(offScreenGLWapper);
+            GLHelper.makeCurrent(offScreenGLWrapper);
             boolean isFilterLocked = lockVideoFilter();
             if (isFilterLocked) {
                 if (videoFilter != innerVideoFilter) {
@@ -486,7 +493,7 @@ public class VideoCore implements IVideoCore {
                     }
                 }
                 if (innerVideoFilter != null) {
-                    synchronized (syncCameraTextureVerticesBuffer) {
+                    synchronized (syncCameraBufferObj) {
                         innerVideoFilter.onDirectionUpdate(directionFlag);
                         innerVideoFilter.onDraw(sample2DFrameBufferTexture, frameBuffer,
                                 shapeVerticesBuffer, cameraTextureVerticesBuffer);
@@ -523,22 +530,22 @@ public class VideoCore implements IVideoCore {
             }
         }
 
-        private void drawScreen() {
-            if (screenGLWapper != null) {
-                GLHelper.makeCurrent(screenGLWapper);
-                GLES20.glUseProgram(screenGLWapper.drawProgram);
+        private void drawPreviewScreen() {
+            if (previewScreenGLWapper != null) {
+                GLHelper.makeCurrent(previewScreenGLWapper);
+                GLES20.glUseProgram(previewScreenGLWapper.drawProgram);
                 GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, frameBufferTexture);
-                GLES20.glUniform1i(screenGLWapper.drawTextureLoc, 0);
-                GLHelper.enableVertex(screenGLWapper.drawPostionLoc, screenGLWapper.drawTextureCoordLoc,
+                GLES20.glUniform1i(previewScreenGLWapper.drawTextureLoc, 0);
+                GLHelper.enableVertex(previewScreenGLWapper.drawPostionLoc, previewScreenGLWapper.drawTextureCoordLoc,
                         shapeVerticesBuffer, screenTextureVerticesBuffer);
                 GLES20.glViewport(0, 0, screenSize.getWidth(), screenSize.getHeight());
                 doGLDraw();
                 GLES20.glFinish();
-                GLHelper.disableVertex(screenGLWapper.drawPostionLoc, screenGLWapper.drawTextureCoordLoc);
+                GLHelper.disableVertex(previewScreenGLWapper.drawPostionLoc, previewScreenGLWapper.drawTextureCoordLoc);
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
                 GLES20.glUseProgram(0);
-                if (!EGL14.eglSwapBuffers(screenGLWapper.eglDisplay, screenGLWapper.eglSurface)) {
+                if (!EGL14.eglSwapBuffers(previewScreenGLWapper.eglDisplay, previewScreenGLWapper.eglSurface)) {
                     throw new RuntimeException("eglSwapBuffers,failed!");
                 }
             }
@@ -547,13 +554,12 @@ public class VideoCore implements IVideoCore {
         private void doGLDraw() {
             GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-            GLES20.glDrawElements(GLES20.GL_TRIANGLES, drawIndecesBuffer.limit(), GLES20.GL_UNSIGNED_SHORT, drawIndecesBuffer);
+            GLES20.glDrawElements(GLES20.GL_TRIANGLES, drawIndexesBuffer.limit(), GLES20.GL_UNSIGNED_SHORT, drawIndexesBuffer);
         }
 
         /**
          * @return ture if filter locked & filter!=null
          */
-
         private boolean lockVideoFilter() {
             try {
                 return lockVideoFilter.tryLock(FILTER_LOCK_TOLERATION, TimeUnit.MILLISECONDS);
@@ -567,87 +573,89 @@ public class VideoCore implements IVideoCore {
         }
 
         private void initOffScreenGL() {
-            if (offScreenGLWapper == null) {
-                offScreenGLWapper = new OffScreenGLWapper();
-                GLHelper.initOffScreenGL(offScreenGLWapper);
-                GLHelper.makeCurrent(offScreenGLWapper);
-                //camera
-                offScreenGLWapper.camProgram = GLHelper.createCameraProgram();
-                GLES20.glUseProgram(offScreenGLWapper.camProgram);
-                offScreenGLWapper.camTextureLoc = GLES20.glGetUniformLocation(offScreenGLWapper.camProgram, "uTexture");
-                offScreenGLWapper.camPostionLoc = GLES20.glGetAttribLocation(offScreenGLWapper.camProgram, "aPosition");
-                offScreenGLWapper.camTextureCoordLoc = GLES20.glGetAttribLocation(offScreenGLWapper.camProgram, "aTextureCoord");
-                //camera2d
-                offScreenGLWapper.cam2dProgram = GLHelper.createCamera2DProgram();
-                GLES20.glUseProgram(offScreenGLWapper.cam2dProgram);
-                offScreenGLWapper.cam2dTextureLoc = GLES20.glGetUniformLocation(offScreenGLWapper.cam2dProgram, "uTexture");
-                offScreenGLWapper.cam2dPostionLoc = GLES20.glGetAttribLocation(offScreenGLWapper.cam2dProgram, "aPosition");
-                offScreenGLWapper.cam2dTextureCoordLoc = GLES20.glGetAttribLocation(offScreenGLWapper.cam2dProgram, "aTextureCoord");
-                offScreenGLWapper.cam2dTextureMatrix = GLES20.glGetUniformLocation(offScreenGLWapper.cam2dProgram, "uTextureMatrix");
-                int[] fb = new int[1], fbt = new int[1];
-                GLHelper.createCamFrameBuff(fb, fbt, mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
+            if (offScreenGLWrapper == null) {
+                offScreenGLWrapper = new OffScreenGLWrapper();
+                GLHelper.initOffScreenGL(offScreenGLWrapper);
+                GLHelper.makeCurrent(offScreenGLWrapper);
+                // camera
+                offScreenGLWrapper.cameraProgram = GLHelper.createCameraProgram();
+                GLES20.glUseProgram(offScreenGLWrapper.cameraProgram);
+                offScreenGLWrapper.camPositionLocation = GLES20.glGetAttribLocation(offScreenGLWrapper.cameraProgram, "aPosition");
+                offScreenGLWrapper.camTextureCoordsLocation = GLES20.glGetAttribLocation(offScreenGLWrapper.cameraProgram, "aTextureCoord");
+                offScreenGLWrapper.camTextureLocation = GLES20.glGetUniformLocation(offScreenGLWrapper.cameraProgram, "uTexture");
+                // camera2d
+                offScreenGLWrapper.camera2dProgram = GLHelper.createCamera2DProgram();
+                GLES20.glUseProgram(offScreenGLWrapper.camera2dProgram);
+                offScreenGLWrapper.cam2dPositionLocation = GLES20.glGetAttribLocation(offScreenGLWrapper.camera2dProgram, "aPosition");
+                offScreenGLWrapper.cam2dTextureCoordsLocation = GLES20.glGetAttribLocation(offScreenGLWrapper.camera2dProgram, "aTextureCoord");
+                offScreenGLWrapper.cam2dTextureLocation = GLES20.glGetUniformLocation(offScreenGLWrapper.camera2dProgram, "uTexture");
+                offScreenGLWrapper.cam2dTextureMatrixLocation = GLES20.glGetUniformLocation(offScreenGLWrapper.camera2dProgram, "uTextureMatrix");
+
+                int[] fb = new int[1];
+                int[] fbTexture = new int[1];
+                GLHelper.createCameraFrameBuffer(fb, fbTexture, mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
                 sample2DFrameBuffer = fb[0];
-                sample2DFrameBufferTexture = fbt[0];
-                GLHelper.createCamFrameBuff(fb, fbt, mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
+                sample2DFrameBufferTexture = fbTexture[0];
+                GLHelper.createCameraFrameBuffer(fb, fbTexture, mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
                 frameBuffer = fb[0];
-                frameBufferTexture = fbt[0];
+                frameBufferTexture = fbTexture[0];
             } else {
-                throw new IllegalStateException("initOffScreenGL without uninitOffScreenGL");
+                throw new IllegalStateException("initOffScreenGL without destroyOffScreenGL");
             }
         }
 
-        private void uninitOffScreenGL() {
-            if (offScreenGLWapper != null) {
-                GLHelper.makeCurrent(offScreenGLWapper);
-                GLES20.glDeleteProgram(offScreenGLWapper.camProgram);
-                GLES20.glDeleteProgram(offScreenGLWapper.cam2dProgram);
+        private void destroyOffScreenGL() {
+            if (offScreenGLWrapper != null) {
+                GLHelper.makeCurrent(offScreenGLWrapper);
+                GLES20.glDeleteProgram(offScreenGLWrapper.cameraProgram);
+                GLES20.glDeleteProgram(offScreenGLWrapper.camera2dProgram);
                 GLES20.glDeleteFramebuffers(1, new int[]{frameBuffer}, 0);
                 GLES20.glDeleteTextures(1, new int[]{frameBufferTexture}, 0);
                 GLES20.glDeleteFramebuffers(1, new int[]{sample2DFrameBuffer}, 0);
                 GLES20.glDeleteTextures(1, new int[]{sample2DFrameBufferTexture}, 0);
-                EGL14.eglDestroySurface(offScreenGLWapper.eglDisplay, offScreenGLWapper.eglSurface);
-                EGL14.eglDestroyContext(offScreenGLWapper.eglDisplay, offScreenGLWapper.eglContext);
-                EGL14.eglTerminate(offScreenGLWapper.eglDisplay);
-                EGL14.eglMakeCurrent(offScreenGLWapper.eglDisplay, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT);
+                EGL14.eglDestroySurface(offScreenGLWrapper.eglDisplay, offScreenGLWrapper.eglSurface);
+                EGL14.eglDestroyContext(offScreenGLWrapper.eglDisplay, offScreenGLWrapper.eglContext);
+                EGL14.eglTerminate(offScreenGLWrapper.eglDisplay);
+                EGL14.eglMakeCurrent(offScreenGLWrapper.eglDisplay, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT);
             } else {
-                throw new IllegalStateException("uninitOffScreenGL without initOffScreenGL");
+                throw new IllegalStateException("destroyOffScreenGL without initOffScreenGL");
             }
         }
 
-        private void initScreenGL(SurfaceTexture screenSurfaceTexture) {
-            if (screenGLWapper == null) {
-                screenTexture = screenSurfaceTexture;
-                screenGLWapper = new ScreenGLWapper();
-                GLHelper.initScreenGL(screenGLWapper, offScreenGLWapper.eglContext, screenSurfaceTexture);
-                GLHelper.makeCurrent(screenGLWapper);
-                screenGLWapper.drawProgram = GLHelper.createScreenProgram();
-                GLES20.glUseProgram(screenGLWapper.drawProgram);
-                screenGLWapper.drawTextureLoc = GLES20.glGetUniformLocation(screenGLWapper.drawProgram, "uTexture");
-                screenGLWapper.drawPostionLoc = GLES20.glGetAttribLocation(screenGLWapper.drawProgram, "aPosition");
-                screenGLWapper.drawTextureCoordLoc = GLES20.glGetAttribLocation(screenGLWapper.drawProgram, "aTextureCoord");
+        private void initPreviewScreenGL(SurfaceTexture screenSurfaceTexture) {
+            if (previewScreenGLWapper == null) {
+                previewScreenTexture = screenSurfaceTexture;
+                previewScreenGLWapper = new ScreenGLWapper();
+                GLHelper.initScreenGL(previewScreenGLWapper, offScreenGLWrapper.eglContext, screenSurfaceTexture);
+                GLHelper.makeCurrent(previewScreenGLWapper);
+                previewScreenGLWapper.drawProgram = GLHelper.createScreenProgram();
+                GLES20.glUseProgram(previewScreenGLWapper.drawProgram);
+                previewScreenGLWapper.drawTextureLoc = GLES20.glGetUniformLocation(previewScreenGLWapper.drawProgram, "uTexture");
+                previewScreenGLWapper.drawPostionLoc = GLES20.glGetAttribLocation(previewScreenGLWapper.drawProgram, "aPosition");
+                previewScreenGLWapper.drawTextureCoordLoc = GLES20.glGetAttribLocation(previewScreenGLWapper.drawProgram, "aTextureCoord");
             } else {
-                throw new IllegalStateException("initScreenGL without unInitScreenGL");
+                throw new IllegalStateException("initScreenGL without destroyScreenGL");
             }
         }
 
-        private void uninitScreenGL() {
-            if (screenGLWapper != null) {
-                GLHelper.makeCurrent(screenGLWapper);
-                GLES20.glDeleteProgram(screenGLWapper.drawProgram);
-                EGL14.eglDestroySurface(screenGLWapper.eglDisplay, screenGLWapper.eglSurface);
-                EGL14.eglDestroyContext(screenGLWapper.eglDisplay, screenGLWapper.eglContext);
-                EGL14.eglTerminate(screenGLWapper.eglDisplay);
-                EGL14.eglMakeCurrent(screenGLWapper.eglDisplay, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT);
-                screenGLWapper = null;
+        private void destroyPreviewScreenGL() {
+            if (previewScreenGLWapper != null) {
+                GLHelper.makeCurrent(previewScreenGLWapper);
+                GLES20.glDeleteProgram(previewScreenGLWapper.drawProgram);
+                EGL14.eglDestroySurface(previewScreenGLWapper.eglDisplay, previewScreenGLWapper.eglSurface);
+                EGL14.eglDestroyContext(previewScreenGLWapper.eglDisplay, previewScreenGLWapper.eglContext);
+                EGL14.eglTerminate(previewScreenGLWapper.eglDisplay);
+                EGL14.eglMakeCurrent(previewScreenGLWapper.eglDisplay, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT);
+                previewScreenGLWapper = null;
             } else {
-                throw new IllegalStateException("unInitScreenGL without initScreenGL");
+                throw new IllegalStateException("destroyScreenGL without initScreenGL");
             }
         }
 
-        private void initMediaCodecGL(Surface mediacodecSurface) {
+        private void initMediaCodecGL(Surface mediaCodecSurface) {
             if (mediaCodecGLWapper == null) {
                 mediaCodecGLWapper = new MediaCodecGLWapper();
-                GLHelper.initMediaCodecGL(mediaCodecGLWapper, offScreenGLWapper.eglContext, mediacodecSurface);
+                GLHelper.initMediaCodecGL(mediaCodecGLWapper, offScreenGLWrapper.eglContext, mediaCodecSurface);
                 GLHelper.makeCurrent(mediaCodecGLWapper);
                 GLES20.glEnable(GLES11Ext.GL_TEXTURE_EXTERNAL_OES);
                 mediaCodecGLWapper.drawProgram = GLHelper.createMediaCodecProgram();
@@ -656,11 +664,11 @@ public class VideoCore implements IVideoCore {
                 mediaCodecGLWapper.drawPostionLoc = GLES20.glGetAttribLocation(mediaCodecGLWapper.drawProgram, "aPosition");
                 mediaCodecGLWapper.drawTextureCoordLoc = GLES20.glGetAttribLocation(mediaCodecGLWapper.drawProgram, "aTextureCoord");
             } else {
-                throw new IllegalStateException("initMediaCodecGL without uninitMediaCodecGL");
+                throw new IllegalStateException("initMediaCodecGL without destroyMediaCodecGL");
             }
         }
 
-        private void uninitMediaCodecGL() {
+        private void destroyMediaCodecGL() {
             if (mediaCodecGLWapper != null) {
                 GLHelper.makeCurrent(mediaCodecGLWapper);
                 GLES20.glDeleteProgram(mediaCodecGLWapper.drawProgram);
@@ -670,21 +678,21 @@ public class VideoCore implements IVideoCore {
                 EGL14.eglMakeCurrent(mediaCodecGLWapper.eglDisplay, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT);
                 mediaCodecGLWapper = null;
             } else {
-                throw new IllegalStateException("uninitMediaCodecGL without initMediaCodecGL");
+                throw new IllegalStateException("destroyMediaCodecGL without initMediaCodecGL");
             }
         }
 
         private void resetFrameBuff() {
-            GLHelper.makeCurrent(offScreenGLWapper);
+            GLHelper.makeCurrent(offScreenGLWrapper);
             GLES20.glDeleteFramebuffers(1, new int[]{frameBuffer}, 0);
             GLES20.glDeleteTextures(1, new int[]{frameBufferTexture}, 0);
             GLES20.glDeleteFramebuffers(1, new int[]{sample2DFrameBuffer}, 0);
             GLES20.glDeleteTextures(1, new int[]{sample2DFrameBufferTexture}, 0);
             int[] fb = new int[1], fbt = new int[1];
-            GLHelper.createCamFrameBuff(fb, fbt, mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
+            GLHelper.createCameraFrameBuffer(fb, fbt, mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
             sample2DFrameBuffer = fb[0];
             sample2DFrameBufferTexture = fbt[0];
-            GLHelper.createCamFrameBuff(fb, fbt, mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
+            GLHelper.createCameraFrameBuffer(fb, fbt, mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
             frameBuffer = fb[0];
             frameBufferTexture = fbt[0];
         }
@@ -694,12 +702,12 @@ public class VideoCore implements IVideoCore {
             mediaCodecTextureVerticesBuffer = GLHelper.getMediaCodecTextureVerticesBuffer();
             screenTextureVerticesBuffer = GLHelper.getScreenTextureVerticesBuffer();
             updateCameraIndex(currCamera);
-            drawIndecesBuffer = GLHelper.getDrawIndecesBuffer();
+            drawIndexesBuffer = GLHelper.getDrawIndexesBuffer();
             cameraTextureVerticesBuffer = GLHelper.getCameraTextureVerticesBuffer();
         }
 
         void updateCameraIndex(int cameraIndex) {
-            synchronized (syncCameraTextureVerticesBuffer) {
+            synchronized (syncCameraBufferObj) {
                 currCamera = cameraIndex;
                 if (currCamera == Camera.CameraInfo.CAMERA_FACING_FRONT) {
                     directionFlag = mediaMakerConfig.frontCameraDirectionMode ^ MediaConfig.DirectionMode.FLAG_DIRECTION_FLIP_HORIZONTAL;
@@ -711,8 +719,8 @@ public class VideoCore implements IVideoCore {
         }
 
 
-        void updateCamTexture(SurfaceTexture surfaceTexture) {
-            synchronized (syncCameraTex) {
+        void updateCameraTexture(SurfaceTexture surfaceTexture) {
+            synchronized (syncCameraTexObj) {
                 if (surfaceTexture != cameraTexture) {
                     cameraTexture = surfaceTexture;
                     frameNum = 0;
@@ -723,7 +731,7 @@ public class VideoCore implements IVideoCore {
 
 
         void addFrameNum() {
-            synchronized (syncFrameNum) {
+            synchronized (syncFrameNumObj) {
                 ++frameNum;
                 this.removeMessages(WHAT_FRAME);
                 this.sendMessageAtFrontOfQueue(this.obtainMessage(VideoGLHandler.WHAT_FRAME));

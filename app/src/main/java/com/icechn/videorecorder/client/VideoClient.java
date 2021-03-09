@@ -20,76 +20,73 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- *
  * Created by lake on 16-5-24.
  */
 public class VideoClient {
+
     private static final String TAG = "VideoClient";
-    MediaMakerConfig mediaMakerConfig;
-    private final Object syncOp = new Object();
-    private Camera camera;
-    private SurfaceTexture camTexture;
-    private int cameraNum;
-    private int currentCameraIndex;
-    private boolean mIsFrontCamera = false;
-    private IVideoCore videoCore;
-    private boolean isStreaming = false;
-    private boolean isRecording = false;
-    private boolean isPreviewing = false;
+
+    private final Object mPrepareSyncObj = new Object();
+    private final MediaMakerConfig mMediaMakerConfig;
+    private IVideoCore mVideoCore;
+    private boolean isRecording;
+    private boolean isPreviewing;
+
+    // Camera
+    private Camera mCamera;
+    private SurfaceTexture mCameraTexture;
+    private final int mCameraNum;
+    private int mCurrentCameraIndex;
+    private boolean mIsFrontCamera;
 
     public VideoClient(Context context, MediaMakerConfig parameters) {
-        mediaMakerConfig = parameters;
-        cameraNum = Camera.getNumberOfCameras();
-        currentCameraIndex = Camera.CameraInfo.CAMERA_FACING_BACK;
+        mMediaMakerConfig = parameters;
+        mCameraNum = Camera.getNumberOfCameras();
+        mCurrentCameraIndex = Camera.CameraInfo.CAMERA_FACING_BACK;
         mIsFrontCamera = false;
-        isStreaming = false;
         isRecording = false;
         isPreviewing = false;
     }
 
     public boolean prepare(RecordConfig config) {
-        synchronized (syncOp) {
-            if ((cameraNum - 1) >= config.getDefaultCamera()) {
-                currentCameraIndex = config.getDefaultCamera();
-                mIsFrontCamera = currentCameraIndex == CameraInfo.CAMERA_FACING_FRONT;
+        synchronized (mPrepareSyncObj) {
+            if ((mCameraNum - 1) >= config.getDefaultCamera()) {
+                mCurrentCameraIndex = config.getDefaultCamera();
+                mIsFrontCamera = mCurrentCameraIndex == CameraInfo.CAMERA_FACING_FRONT;
             }
-            if (null == (camera = createCamera(currentCameraIndex))) {
-                Log.e("","can not open camera");
+            if (null == (mCamera = createCamera(mCurrentCameraIndex))) {
+                Log.e(TAG, "Prepare can not open camera");
                 return false;
             }
-            Camera.Parameters parameters = camera.getParameters();
-            CameraHelper.selectCameraPreviewWH(parameters, mediaMakerConfig, config.getTargetVideoSize());
-            CameraHelper.selectCameraFpsRange(parameters, mediaMakerConfig);
-            if (config.getVideoFPS() > mediaMakerConfig.previewMaxFps / 1000) {
-                mediaMakerConfig.videoFPS = mediaMakerConfig.previewMaxFps / 1000;
-            } else {
-                mediaMakerConfig.videoFPS = config.getVideoFPS();
-            }
-            resoveResolution(mediaMakerConfig, config.getTargetVideoSize());
-            if (!CameraHelper.selectCameraColorFormat(parameters, mediaMakerConfig)) {
-                Log.e("","CameraHelper.selectCameraColorFormat,Failed");
-                mediaMakerConfig.dump();
+            Camera.Parameters parameters = mCamera.getParameters();
+            CameraHelper.selectCameraPreviewWH(parameters, mMediaMakerConfig, config.getTargetVideoSize());
+            CameraHelper.selectCameraFpsRange(parameters, mMediaMakerConfig);
+            mMediaMakerConfig.videoFPS = Math.min(config.getVideoFPS(), mMediaMakerConfig.previewMaxFps / 1000);
+            resolveResolution(mMediaMakerConfig, config.getTargetVideoSize());
+            if (!CameraHelper.selectCameraColorFormat(parameters, mMediaMakerConfig)) {
+                Log.e(TAG, "CameraHelper.selectCameraColorFormat,Failed");
+                mMediaMakerConfig.dump();
                 return false;
             }
-            if (!CameraHelper.configCamera(camera, mediaMakerConfig)) {
-                Log.e("","CameraHelper.configCamera,Failed");
-                mediaMakerConfig.dump();
+            if (!CameraHelper.configCamera(mCamera, mMediaMakerConfig)) {
+                Log.e(TAG, "CameraHelper.configCamera,Failed");
+                mMediaMakerConfig.dump();
                 return false;
             }
-            videoCore = new VideoCore(mediaMakerConfig);
-            if (!videoCore.prepare(config)) {
+            mVideoCore = new VideoCore(mMediaMakerConfig);
+            if (!mVideoCore.prepare(config)) {
                 return false;
             }
-            videoCore.setCurrentCamera(currentCameraIndex);
-            prepareVideo();
+            mVideoCore.setCurrentCamera(mCurrentCameraIndex);
+            // prepareVideo();
             return true;
         }
     }
 
     private Camera createCamera(int cameraId) {
         try {
-            camera = Camera.open(cameraId);
-            camera.setDisplayOrientation(0);
+            mCamera = Camera.open(cameraId);
+            mCamera.setDisplayOrientation(0);
         } catch (SecurityException e) {
             e.printStackTrace();
             return null;
@@ -97,65 +94,60 @@ public class VideoClient {
             e.printStackTrace();
             return null;
         }
-        return camera;
-    }
-
-    private boolean prepareVideo() {
-
-        return true;
+        return mCamera;
     }
 
     private boolean startVideo() {
-        camTexture = new SurfaceTexture(IVideoCore.OVERWATCH_TEXTURE_ID);
-        camTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
+        mCameraTexture = new SurfaceTexture(IVideoCore.OVERWATCH_TEXTURE_ID);
+        mCameraTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
             @Override
             public void onFrameAvailable(SurfaceTexture surfaceTexture) {
-                synchronized (syncOp) {
-                    if (videoCore != null) {
-                        ((VideoCore) videoCore).onFrameAvailable();
+                synchronized (mPrepareSyncObj) {
+                    if (mVideoCore != null) {
+                        ((VideoCore) mVideoCore).onFrameAvailable();
                     }
                 }
             }
         });
         try {
-            camera.setPreviewTexture(camTexture);
+            mCamera.setPreviewTexture(mCameraTexture);
         } catch (IOException e) {
             e.printStackTrace();
-            camera.release();
+            mCamera.release();
             return false;
         }
-        camera.startPreview();
+        mCamera.startPreview();
         return true;
     }
 
     public boolean startPreview(SurfaceTexture surfaceTexture, int visualWidth, int visualHeight) {
-        synchronized (syncOp) {
+        synchronized (mPrepareSyncObj) {
             if (!isWorking() && !isPreviewing) {
                 if (!startVideo()) {
-                    mediaMakerConfig.dump();
-                    Log.e("","VideoClient,start(),failed");
+                    mMediaMakerConfig.dump();
+                    Log.e("", "VideoClient,start(),failed");
                     return false;
                 }
-                videoCore.updateCamTexture(camTexture);
+                mVideoCore.updateCamTexture(mCameraTexture);
             }
-            videoCore.startPreview(surfaceTexture, visualWidth, visualHeight);
+            mVideoCore.startPreview(surfaceTexture, visualWidth, visualHeight);
             isPreviewing = true;
             return true;
         }
     }
 
     public void updatePreview(int visualWidth, int visualHeight) {
-        videoCore.updatePreview(visualWidth, visualHeight);
+        mVideoCore.updatePreview(visualWidth, visualHeight);
     }
 
     public boolean stopPreview(boolean releaseTexture) {
-        synchronized (syncOp) {
+        synchronized (mPrepareSyncObj) {
             if (isPreviewing) {
-                videoCore.stopPreview(releaseTexture);
+                mVideoCore.stopPreview(releaseTexture);
                 if (!isWorking()) {
-                    camera.stopPreview();
-                    videoCore.updateCamTexture(null);
-                    camTexture.release();
+                    mCamera.stopPreview();
+                    mVideoCore.updateCamTexture(null);
+                    mCameraTexture.release();
                 }
             }
             isPreviewing = false;
@@ -164,17 +156,17 @@ public class VideoClient {
     }
 
     public boolean startRecording(MediaMuxerWrapper muxer) {
-        synchronized (syncOp) {
+        synchronized (mPrepareSyncObj) {
             if (!isWorking() && !isPreviewing) {
                 if (!startVideo()) {
-                    mediaMakerConfig.dump();
-                    Log.e("","VideoClient,start(),failed");
+                    mMediaMakerConfig.dump();
+                    Log.e("", "VideoClient,start(),failed");
                     return false;
                 }
-                videoCore.updateCamTexture(camTexture);
+                mVideoCore.updateCamTexture(mCameraTexture);
             }
-            videoCore.startRecording(muxer);
-            if (mediaMakerConfig.saveVideoEnable) {
+            mVideoCore.startRecording(muxer);
+            if (mMediaMakerConfig.saveVideoEnable) {
                 isRecording = true;
             }
             return true;
@@ -182,57 +174,56 @@ public class VideoClient {
     }
 
     public boolean stopRecording() {
-        synchronized (syncOp) {
+        synchronized (mPrepareSyncObj) {
             if (isWorking()) {
-                videoCore.stopRecording();
+                mVideoCore.stopRecording();
                 if (!isPreviewing) {
-                    camera.stopPreview();
-                    videoCore.updateCamTexture(null);
-                    camTexture.release();
+                    mCamera.stopPreview();
+                    mVideoCore.updateCamTexture(null);
+                    mCameraTexture.release();
                 }
             }
-            isStreaming = false;
             isRecording = false;
             return true;
         }
     }
 
     private boolean isWorking() {
-        return isStreaming || isRecording;
+        return isRecording;
     }
 
     public boolean destroy() {
-        synchronized (syncOp) {
-            camera.release();
-            videoCore.destroy();
-            videoCore = null;
-            camera = null;
+        synchronized (mPrepareSyncObj) {
+            mCamera.release();
+            mVideoCore.destroy();
+            mVideoCore = null;
+            mCamera = null;
             return true;
         }
     }
 
     public boolean swapCamera() {
-        synchronized (syncOp) {
-            Log.d("","StreamingClient,swapCamera()");
-            camera.stopPreview();
-            camera.release();
-            camera = null;
-            if (null == (camera = createCamera(currentCameraIndex = (++currentCameraIndex) % cameraNum))) {
-                Log.e("","can not swap camera");
+        synchronized (mPrepareSyncObj) {
+            Log.d("", "StreamingClient,swapCamera()");
+            mCamera.stopPreview();
+            mCamera.release();
+            mCamera = null;
+            if (null == (mCamera = createCamera(mCurrentCameraIndex = (++mCurrentCameraIndex) % mCameraNum))) {
+                Log.e("", "can not swap camera");
                 return false;
             }
-            mIsFrontCamera = currentCameraIndex == CameraInfo.CAMERA_FACING_FRONT;
-            videoCore.setCurrentCamera(currentCameraIndex);
-            CameraHelper.selectCameraFpsRange(camera.getParameters(), mediaMakerConfig);
-            if (!CameraHelper.configCamera(camera, mediaMakerConfig)) {
-                camera.release();
+            mIsFrontCamera = mCurrentCameraIndex == CameraInfo.CAMERA_FACING_FRONT;
+            mVideoCore.setCurrentCamera(mCurrentCameraIndex);
+            CameraHelper.selectCameraFpsRange(mCamera.getParameters(), mMediaMakerConfig);
+            if (!CameraHelper.configCamera(mCamera, mMediaMakerConfig)) {
+                mCamera.release();
                 return false;
             }
-            prepareVideo();
-            camTexture.release();
-            videoCore.updateCamTexture(null);
+            // prepareVideo();
+            mCameraTexture.release();
+            mVideoCore.updateCamTexture(null);
             startVideo();
-            videoCore.updateCamTexture(camTexture);
+            mVideoCore.updateCamTexture(mCameraTexture);
             return true;
         }
     }
@@ -242,21 +233,21 @@ public class VideoClient {
     }
 
     public boolean toggleFlashLight() {
-        synchronized (syncOp) {
+        synchronized (mPrepareSyncObj) {
             try {
-                Camera.Parameters parameters = camera.getParameters();
+                Camera.Parameters parameters = mCamera.getParameters();
                 List<String> flashModes = parameters.getSupportedFlashModes();
                 String flashMode = parameters.getFlashMode();
                 if (!Camera.Parameters.FLASH_MODE_TORCH.equals(flashMode)) {
                     if (flashModes.contains(Camera.Parameters.FLASH_MODE_TORCH)) {
                         parameters.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
-                        camera.setParameters(parameters);
+                        mCamera.setParameters(parameters);
                         return true;
                     }
                 } else if (!Camera.Parameters.FLASH_MODE_OFF.equals(flashMode)) {
                     if (flashModes.contains(Camera.Parameters.FLASH_MODE_OFF)) {
                         parameters.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
-                        camera.setParameters(parameters);
+                        mCamera.setParameters(parameters);
                         return true;
                     }
                 }
@@ -267,22 +258,23 @@ public class VideoClient {
             return false;
         }
     }
-	public boolean toggleFlashLight(boolean on) {
-        synchronized (syncOp) {
+
+    public boolean toggleFlashLight(boolean on) {
+        synchronized (mPrepareSyncObj) {
             try {
-                Camera.Parameters parameters = camera.getParameters();
+                Camera.Parameters parameters = mCamera.getParameters();
                 List<String> flashModes = parameters.getSupportedFlashModes();
                 String flashMode = parameters.getFlashMode();
                 if (on && !Camera.Parameters.FLASH_MODE_TORCH.equals(flashMode)) {
                     if (flashModes.contains(Camera.Parameters.FLASH_MODE_TORCH)) {
                         parameters.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
-                        camera.setParameters(parameters);
+                        mCamera.setParameters(parameters);
                         return true;
                     }
                 } else if (!on && !Camera.Parameters.FLASH_MODE_OFF.equals(flashMode)) {
                     if (flashModes.contains(Camera.Parameters.FLASH_MODE_OFF)) {
                         parameters.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
-                        camera.setParameters(parameters);
+                        mCamera.setParameters(parameters);
                         return true;
                     }
                 }
@@ -295,51 +287,49 @@ public class VideoClient {
     }
 
     public boolean setZoomByPercent(float targetPercent) {
-        synchronized (syncOp) {
+        synchronized (mPrepareSyncObj) {
             targetPercent = Math.min(Math.max(0f, targetPercent), 1f);
-            Camera.Parameters p = camera.getParameters();
+            Camera.Parameters p = mCamera.getParameters();
             p.setZoom((int) (p.getMaxZoom() * targetPercent));
-            camera.setParameters(p);
+            mCamera.setParameters(p);
             return true;
         }
     }
 
     public void setHardVideoFilter(BaseHardVideoFilter baseHardVideoFilter) {
-        ((VideoCore) videoCore).setVideoFilter(baseHardVideoFilter);
+        ((VideoCore) mVideoCore).setVideoFilter(baseHardVideoFilter);
     }
 
     public void setVideoChangeListener(IVideoChange listener) {
-        synchronized (syncOp) {
-            if (videoCore != null) {
-                videoCore.setVideoChangeListener(listener);
+        synchronized (mPrepareSyncObj) {
+            if (mVideoCore != null) {
+                mVideoCore.setVideoChangeListener(listener);
             }
         }
     }
 
-    private void resoveResolution(MediaMakerConfig config, Size targetVideoSize) {
-        {
-            float pw, ph, vw, vh;
-            if (config.isPortrait) {
-                config.videoHeight = targetVideoSize.getWidth();
-                config.videoWidth = targetVideoSize.getHeight();
-                pw = config.previewVideoHeight;
-                ph = config.previewVideoWidth;
-            } else {
-                config.videoWidth = targetVideoSize.getWidth();
-                config.videoHeight = targetVideoSize.getHeight();
-                pw = config.previewVideoWidth;
-                ph = config.previewVideoHeight;
-            }
-            vw = config.videoWidth;
-            vh = config.videoHeight;
-            float pr = ph / pw, vr = vh / vw;
-            if (pr == vr) {
-                config.cropRatio = 0.0f;
-            } else if (pr > vr) {
-                config.cropRatio = (1.0f - vr / pr) / 2.0f;
-            } else {
-                config.cropRatio = -(1.0f - pr / vr) / 2.0f;
-            }
+    private void resolveResolution(MediaMakerConfig config, Size targetVideoSize) {
+        float pw, ph, vw, vh;
+        if (config.isPortrait) {
+            config.videoHeight = targetVideoSize.getWidth();
+            config.videoWidth = targetVideoSize.getHeight();
+            pw = config.previewVideoHeight;
+            ph = config.previewVideoWidth;
+        } else {
+            config.videoWidth = targetVideoSize.getWidth();
+            config.videoHeight = targetVideoSize.getHeight();
+            pw = config.previewVideoWidth;
+            ph = config.previewVideoHeight;
+        }
+        vw = config.videoWidth;
+        vh = config.videoHeight;
+        float pr = ph / pw, vr = vh / vw;
+        if (pr == vr) {
+            config.cropRatio = 0.0f;
+        } else if (pr > vr) {
+            config.cropRatio = (1.0f - vr / pr) / 2.0f;
+        } else {
+            config.cropRatio = -(1.0f - pr / vr) / 2.0f;
         }
     }
 

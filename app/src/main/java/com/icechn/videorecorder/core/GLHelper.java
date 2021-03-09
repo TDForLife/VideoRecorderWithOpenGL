@@ -17,7 +17,7 @@ import javax.microedition.khronos.egl.EGL10;
 
 import com.icechn.videorecorder.model.MediaMakerConfig;
 import com.icechn.videorecorder.model.MediaCodecGLWapper;
-import com.icechn.videorecorder.model.OffScreenGLWapper;
+import com.icechn.videorecorder.model.OffScreenGLWrapper;
 import com.icechn.videorecorder.model.ScreenGLWapper;
 import com.icechn.videorecorder.tools.GLESTools;
 
@@ -26,8 +26,11 @@ import com.icechn.videorecorder.tools.GLESTools;
  * for inner use
  */
 public class GLHelper {
+
+    // Android-specific extension.
     private static final int EGL_RECORDABLE_ANDROID = 0x3142;
-    private static final String VERTEXSHADER = "" +
+
+    private static final String VERTEX_SHADER = "" +
             "attribute vec4 aPosition;\n" +
             "attribute vec2 aTextureCoord;\n" +
             "varying vec2 vTextureCoord;\n" +
@@ -35,7 +38,28 @@ public class GLHelper {
             "    gl_Position= aPosition;\n" +
             "    vTextureCoord = aTextureCoord;\n" +
             "}";
-    private static final String VERTEXSHADER_CAMERA2D =
+
+    private static final String FRAGMENT_SHADER_2D = "" +
+            "precision highp float;\n" +
+            "varying highp vec2 vTextureCoord;\n" +
+            "uniform sampler2D uTexture;\n" +
+            "void main(){\n" +
+            "    vec4  color = texture2D(uTexture, vTextureCoord);\n" +
+            "    gl_FragColor = color;\n" +
+            "}";
+
+    private static final String FRAGMENT_SHADER_CAMERA = "" +
+            "#extension GL_OES_EGL_image_external : require\n" +
+            "precision highp float;\n" +
+            "varying highp vec2 vTextureCoord;\n" +
+            "uniform sampler2D uTexture;\n" +
+            "void main(){\n" +
+            "    vec4 color = texture2D(uTexture, vTextureCoord);\n" +
+            "    gl_FragColor = color;\n" +
+            "}";
+
+
+    private static final String VERTEX_SHADER_CAMERA2D = "" +
             "attribute vec4 aPosition;\n" +
             "attribute vec4 aTextureCoord;\n" +
             "uniform mat4 uTextureMatrix;\n" +
@@ -44,90 +68,97 @@ public class GLHelper {
             "    gl_Position= aPosition;\n" +
             "    vTextureCoord = (uTextureMatrix * aTextureCoord).xy;\n" +
             "}";
-    private static String FRAGMENTSHADER_CAMERA = "" +
-            "#extension GL_OES_EGL_image_external : require\n" +
-            "precision highp float;\n" +
-            "varying highp vec2 vTextureCoord;\n" +
-            "uniform sampler2D uTexture;\n" +
-            "void main(){\n" +
-            "    vec4  color = texture2D(uTexture, vTextureCoord);\n" +
-            "    gl_FragColor = color;\n" +
-            "}";
-    private static String FRAGMENTSHADER_CAMERA2D = "" +
+
+    /**
+     * Android相机输出的原始数据一般都为 YUV 数据，而在 OpenGL 中使用的绝大部分纹理 ID 都是 RGBA 的格式，
+     * 所以原始数据都是无法直接用 OpenGL 来渲染的。所以我们添加了一个扩展 GL_OES_EGL_image_external
+     * 使用 OES 纹理后，我们不需要在片段着色器中自己做 YUV to RGBA 的转换，因为 OES 纹理可以直接接收 YUV 数据或者直接输出 YUV 数据
+     * samplerExternalOES 是 Android 用来渲染相机数据，相应的，需要绑定到 GL_TEXTURE_EXTERNAL_OES
+     * sampler2D 则用于渲染图片，绑定 GL_TEXTURE_2D
+     */
+    private static final String FRAGMENT_SHADER_CAMERA2D = "" +
             "#extension GL_OES_EGL_image_external : require\n" +
             "precision highp float;\n" +
             "varying highp vec2 vTextureCoord;\n" +
             "uniform samplerExternalOES uTexture;\n" +
-            "void main(){\n" +
-            "    vec4  color = texture2D(uTexture, vTextureCoord);\n" +
+            "void main() {\n" +
+            "    vec4 color = texture2D(uTexture, vTextureCoord);\n" +
             "    gl_FragColor = color;\n" +
             "}";
-    private static final String FRAGMENTSHADER_2D = "" +
-            "precision highp float;\n" +
-            "varying highp vec2 vTextureCoord;\n" +
-            "uniform sampler2D uTexture;\n" +
-            "void main(){\n" +
-            "    vec4  color = texture2D(uTexture, vTextureCoord);\n" +
-            "    gl_FragColor = color;\n" +
-            "}";
-    private static short drawIndices[] = {0, 1, 2, 0, 2, 3};
-    private static float SquareVertices[] = {
+
+    private static final short[] drawIndices = {
+            0, 1, 2,
+            0, 2, 3
+    };
+
+    private static final float[] SquareVertices = {
             -1.0f, 1.0f,
             -1.0f, -1.0f,
             1.0f, -1.0f,
-            1.0f, 1.0f};
-    private static float CamTextureVertices[] = {
+            1.0f, 1.0f
+    };
+    private static final float[] CamTextureVertices = {
             0.0f, 1.0f,
             0.0f, 0.0f,
             1.0f, 0.0f,
-            1.0f, 1.0f};
-    private static float Cam2dTextureVertices[] = {
+            1.0f, 1.0f
+    };
+    private static final float[] Cam2dTextureVertices = {
             0.0f, 1.0f,
             0.0f, 0.0f,
             1.0f, 0.0f,
-            1.0f, 1.0f};
-    private static float Cam2dTextureVertices_90[] = {
+            1.0f, 1.0f
+    };
+    private static final float[] Cam2dTextureVertices_90 = {
             0.0f, 0.0f,
             1.0f, 0.0f,
             1.0f, 1.0f,
-            0.0f, 1.0f};
-    private static float Cam2dTextureVertices_180[] = {
+            0.0f, 1.0f
+    };
+    private static final float[] Cam2dTextureVertices_180 = {
             1.0f, 0.0f,
             1.0f, 1.0f,
             0.0f, 1.0f,
-            0.0f, 0.0f};
-    private static float Cam2dTextureVertices_270[] = {
+            0.0f, 0.0f
+    };
+    private static final float[] Cam2dTextureVertices_270 = {
             1.0f, 1.0f,
             0.0f, 1.0f,
             0.0f, 0.0f,
-            1.0f, 0.0f};
-    private static float MediaCodecTextureVertices[] = {
+            1.0f, 0.0f
+    };
+    private static final float[] MediaCodecTextureVertices = {
             0.0f, 1.0f,
             0.0f, 0.0f,
             1.0f, 0.0f,
-            1.0f, 1.0f};
-    private static float ScreenTextureVertices[] = {
+            1.0f, 1.0f
+    };
+    private static final float[] ScreenTextureVertices = {
             0.0f, 1.0f,
             0.0f, 0.0f,
             1.0f, 0.0f,
-            1.0f, 1.0f};
+            1.0f, 1.0f
+    };
+
     public static int FLOAT_SIZE_BYTES = 4;
     public static int SHORT_SIZE_BYTES = 2;
     public static int COORDS_PER_VERTEX = 2;
     public static int TEXTURE_COORDS_PER_VERTEX = 2;
 
-    public static void initOffScreenGL(OffScreenGLWapper wapper) {
-        wapper.eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY);
-        if (EGL14.EGL_NO_DISPLAY == wapper.eglDisplay) {
-            throw new RuntimeException("eglGetDisplay,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+    public static void initOffScreenGL(OffScreenGLWrapper wrapper) {
+        wrapper.eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY);
+        if (EGL14.EGL_NO_DISPLAY == wrapper.eglDisplay) {
+            throw new RuntimeException("initOffScreenGL get eglGetDisplay has failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
-        int versions[] = new int[2];
-        if (!EGL14.eglInitialize(wapper.eglDisplay, versions, 0, versions, 1)) {
-            throw new RuntimeException("eglInitialize,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+
+        int[] versions = new int[2];
+        if (!EGL14.eglInitialize(wrapper.eglDisplay, versions, 0, versions, 1)) {
+            throw new RuntimeException("initOffScreenGL eglInitialize has failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
-        int configsCount[] = new int[1];
-        EGLConfig configs[] = new EGLConfig[1];
-        int configSpec[] = new int[]{
+
+        int[] configsCount = new int[1];
+        EGLConfig[] configs = new EGLConfig[1];
+        int[] configSpec = new int[]{
                 EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
                 EGL14.EGL_RED_SIZE, 8,
                 EGL14.EGL_GREEN_SIZE, 8,
@@ -136,44 +167,50 @@ public class GLHelper {
                 EGL14.EGL_STENCIL_SIZE, 0,
                 EGL14.EGL_NONE
         };
-        EGL14.eglChooseConfig(wapper.eglDisplay, configSpec, 0, configs, 0, 1, configsCount, 0);
+        EGL14.eglChooseConfig(wrapper.eglDisplay, configSpec, 0, configs, 0, 1, configsCount, 0);
         if (configsCount[0] <= 0) {
-            throw new RuntimeException("eglChooseConfig,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+            throw new RuntimeException("initOffScreenGL eglChooseConfig has failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
-        wapper.eglConfig = configs[0];
-        int[] surfaceAttribs = {
+        wrapper.eglConfig = configs[0];
+
+        int[] surfaceAttributes = {
                 EGL10.EGL_WIDTH, 1,
                 EGL10.EGL_HEIGHT, 1,
                 EGL14.EGL_NONE
         };
-        int contextSpec[] = new int[]{
+        int[] contextSpec = new int[]{
                 EGL14.EGL_CONTEXT_CLIENT_VERSION, 2,
                 EGL14.EGL_NONE
         };
-        wapper.eglContext = EGL14.eglCreateContext(wapper.eglDisplay, wapper.eglConfig, EGL14.EGL_NO_CONTEXT, contextSpec, 0);
-        if (EGL14.EGL_NO_CONTEXT == wapper.eglContext) {
-            throw new RuntimeException("eglCreateContext,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+        wrapper.eglContext = EGL14.eglCreateContext(wrapper.eglDisplay, wrapper.eglConfig, EGL14.EGL_NO_CONTEXT, contextSpec, 0);
+        if (EGL14.EGL_NO_CONTEXT == wrapper.eglContext) {
+            throw new RuntimeException("initOffScreenGL eglCreateContext has failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
+
         int[] values = new int[1];
-        EGL14.eglQueryContext(wapper.eglDisplay, wapper.eglContext, EGL14.EGL_CONTEXT_CLIENT_VERSION, values, 0);
-        wapper.eglSurface = EGL14.eglCreatePbufferSurface(wapper.eglDisplay, wapper.eglConfig, surfaceAttribs, 0);
-        if (null == wapper.eglSurface || EGL14.EGL_NO_SURFACE == wapper.eglSurface) {
-            throw new RuntimeException("eglCreateWindowSurface,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+        EGL14.eglQueryContext(wrapper.eglDisplay, wrapper.eglContext, EGL14.EGL_CONTEXT_CLIENT_VERSION, values, 0);
+        // 创建的是离屏 Surface
+        wrapper.eglSurface = EGL14.eglCreatePbufferSurface(wrapper.eglDisplay, wrapper.eglConfig, surfaceAttributes, 0);
+        if (null == wrapper.eglSurface || EGL14.EGL_NO_SURFACE == wrapper.eglSurface) {
+            throw new RuntimeException("initOffScreenGL eglCreatePBufferSurface has failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
     }
 
-    public static void initMediaCodecGL(MediaCodecGLWapper wapper, EGLContext sharedContext, Surface mediaInputSurface) {
-        wapper.eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY);
-        if (EGL14.EGL_NO_DISPLAY == wapper.eglDisplay) {
-            throw new RuntimeException("eglGetDisplay,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+    public static void initMediaCodecGL(MediaCodecGLWapper wrapper, EGLContext sharedContext, Surface mediaInputSurface) {
+        wrapper.eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY);
+        if (EGL14.EGL_NO_DISPLAY == wrapper.eglDisplay) {
+            throw new RuntimeException("initMediaCodecGL get eglGetDisplay has failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
-        int versions[] = new int[2];
-        if (!EGL14.eglInitialize(wapper.eglDisplay, versions, 0, versions, 1)) {
-            throw new RuntimeException("eglInitialize,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+
+        int[] versions = new int[2];
+        if (!EGL14.eglInitialize(wrapper.eglDisplay, versions, 0, versions, 1)) {
+            throw new RuntimeException("initMediaCodecGL eglInitialize has failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
-        int configsCount[] = new int[1];
-        EGLConfig configs[] = new EGLConfig[1];
-        int configSpec[] = new int[]{
+
+        // 注意下方的 EGL_RECORDABLE_ANDROID —— Android-specific extension.
+        int[] configsCount = new int[1];
+        EGLConfig[] configs = new EGLConfig[1];
+        int[] configSpec = new int[]{
                 EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
                 EGL14.EGL_RED_SIZE, 8,
                 EGL14.EGL_GREEN_SIZE, 8,
@@ -183,42 +220,47 @@ public class GLHelper {
                 EGL14.EGL_STENCIL_SIZE, 0,
                 EGL14.EGL_NONE
         };
-        EGL14.eglChooseConfig(wapper.eglDisplay, configSpec, 0, configs, 0, 1, configsCount, 0);
+        EGL14.eglChooseConfig(wrapper.eglDisplay, configSpec, 0, configs, 0, 1, configsCount, 0);
         if (configsCount[0] <= 0) {
-            throw new RuntimeException("eglChooseConfig,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+            throw new RuntimeException("initMediaCodecGL eglChooseConfig has failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
-        wapper.eglConfig = configs[0];
-        int[] surfaceAttribs = {
+        wrapper.eglConfig = configs[0];
+
+        int[] surfaceAttributes = {
                 EGL14.EGL_NONE
         };
-        int contextSpec[] = new int[]{
+        int[] contextSpec = new int[]{
                 EGL14.EGL_CONTEXT_CLIENT_VERSION, 2,
                 EGL14.EGL_NONE
         };
-        wapper.eglContext = EGL14.eglCreateContext(wapper.eglDisplay, wapper.eglConfig, sharedContext, contextSpec, 0);
-        if (EGL14.EGL_NO_CONTEXT == wapper.eglContext) {
-            throw new RuntimeException("eglCreateContext,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+        wrapper.eglContext = EGL14.eglCreateContext(wrapper.eglDisplay, wrapper.eglConfig, sharedContext, contextSpec, 0);
+        if (EGL14.EGL_NO_CONTEXT == wrapper.eglContext) {
+            throw new RuntimeException("initMediaCodecGL eglCreateContext has failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
+
         int[] values = new int[1];
-        EGL14.eglQueryContext(wapper.eglDisplay, wapper.eglContext, EGL14.EGL_CONTEXT_CLIENT_VERSION, values, 0);
-        wapper.eglSurface = EGL14.eglCreateWindowSurface(wapper.eglDisplay, wapper.eglConfig, mediaInputSurface, surfaceAttribs, 0);
-        if (null == wapper.eglSurface || EGL14.EGL_NO_SURFACE == wapper.eglSurface) {
-            throw new RuntimeException("eglCreateWindowSurface,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+        EGL14.eglQueryContext(wrapper.eglDisplay, wrapper.eglContext, EGL14.EGL_CONTEXT_CLIENT_VERSION, values, 0);
+        // 创建的是窗口 Surface
+        wrapper.eglSurface = EGL14.eglCreateWindowSurface(wrapper.eglDisplay, wrapper.eglConfig, mediaInputSurface, surfaceAttributes, 0);
+        if (null == wrapper.eglSurface || EGL14.EGL_NO_SURFACE == wrapper.eglSurface) {
+            throw new RuntimeException("initMediaCodecGL eglCreateWindowSurface has failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
     }
 
-    public static void initScreenGL(ScreenGLWapper wapper, EGLContext sharedContext, SurfaceTexture screenSurface) {
-        wapper.eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY);
-        if (EGL14.EGL_NO_DISPLAY == wapper.eglDisplay) {
-            throw new RuntimeException("eglGetDisplay,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+    public static void initScreenGL(ScreenGLWapper wrapper, EGLContext sharedContext, SurfaceTexture screenSurface) {
+        wrapper.eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY);
+        if (EGL14.EGL_NO_DISPLAY == wrapper.eglDisplay) {
+            throw new RuntimeException("initScreenGL get eglGetDisplay has failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
-        int versions[] = new int[2];
-        if (!EGL14.eglInitialize(wapper.eglDisplay, versions, 0, versions, 1)) {
-            throw new RuntimeException("eglInitialize,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+
+        int[] versions = new int[2];
+        if (!EGL14.eglInitialize(wrapper.eglDisplay, versions, 0, versions, 1)) {
+            throw new RuntimeException("initScreenGL get eglInitialize has failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
-        int configsCount[] = new int[1];
-        EGLConfig configs[] = new EGLConfig[1];
-        int configSpec[] = new int[]{
+
+        int[] configsCount = new int[1];
+        EGLConfig[] configs = new EGLConfig[1];
+        int[] configSpec = new int[]{
                 EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
                 EGL14.EGL_RED_SIZE, 8,
                 EGL14.EGL_GREEN_SIZE, 8,
@@ -227,66 +269,71 @@ public class GLHelper {
                 EGL14.EGL_STENCIL_SIZE, 0,
                 EGL14.EGL_NONE
         };
-        EGL14.eglChooseConfig(wapper.eglDisplay, configSpec, 0, configs, 0, 1, configsCount, 0);
+        EGL14.eglChooseConfig(wrapper.eglDisplay, configSpec, 0, configs, 0, 1, configsCount, 0);
         if (configsCount[0] <= 0) {
-            throw new RuntimeException("eglChooseConfig,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+            throw new RuntimeException("initScreenGL get eglChooseConfig has failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
-        wapper.eglConfig = configs[0];
-        int[] surfaceAttribs = {
+        wrapper.eglConfig = configs[0];
+
+        int[] surfaceAttributes = {
                 EGL14.EGL_NONE
         };
-        int contextSpec[] = new int[]{
+        int[] contextSpec = new int[]{
                 EGL14.EGL_CONTEXT_CLIENT_VERSION, 2,
                 EGL14.EGL_NONE
         };
-        wapper.eglContext = EGL14.eglCreateContext(wapper.eglDisplay, wapper.eglConfig, sharedContext, contextSpec, 0);
-        if (EGL14.EGL_NO_CONTEXT == wapper.eglContext) {
-            throw new RuntimeException("eglCreateContext,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+        wrapper.eglContext = EGL14.eglCreateContext(wrapper.eglDisplay, wrapper.eglConfig, sharedContext, contextSpec, 0);
+        if (EGL14.EGL_NO_CONTEXT == wrapper.eglContext) {
+            throw new RuntimeException("initScreenGL get eglCreateContext has failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
+
         int[] values = new int[1];
-        EGL14.eglQueryContext(wapper.eglDisplay, wapper.eglContext, EGL14.EGL_CONTEXT_CLIENT_VERSION, values, 0);
-        wapper.eglSurface = EGL14.eglCreateWindowSurface(wapper.eglDisplay, wapper.eglConfig, screenSurface, surfaceAttribs, 0);
-        if (null == wapper.eglSurface || EGL14.EGL_NO_SURFACE == wapper.eglSurface) {
-            throw new RuntimeException("eglCreateWindowSurface,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+        EGL14.eglQueryContext(wrapper.eglDisplay, wrapper.eglContext, EGL14.EGL_CONTEXT_CLIENT_VERSION, values, 0);
+        wrapper.eglSurface = EGL14.eglCreateWindowSurface(wrapper.eglDisplay, wrapper.eglConfig, screenSurface, surfaceAttributes, 0);
+        if (null == wrapper.eglSurface || EGL14.EGL_NO_SURFACE == wrapper.eglSurface) {
+            throw new RuntimeException("initScreenGL get eglCreateWindowSurface has failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
     }
 
-    public static void makeCurrent(OffScreenGLWapper wapper) {
-        if (!EGL14.eglMakeCurrent(wapper.eglDisplay, wapper.eglSurface, wapper.eglSurface, wapper.eglContext)) {
-            throw new RuntimeException("eglMakeCurrent,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+    /**
+     * 切换为 OffScreenGLWrapper OpenGL 上下文
+     * OpenGL API 在将 OffScreenWrapper Surface 作为渲染目标，而 display 则作为 Surface 的前端显示
+     * PS : EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY) 返回的实例是单例，是同一个对象
+     *
+     * @param wrapper
+     */
+    public static void makeCurrent(OffScreenGLWrapper wrapper) {
+        if (!EGL14.eglMakeCurrent(wrapper.eglDisplay, wrapper.eglSurface, wrapper.eglSurface, wrapper.eglContext)) {
+            throw new RuntimeException("makeCurrent off-screen context failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
     }
 
-    public static void makeCurrent(MediaCodecGLWapper wapper) {
-        if (!EGL14.eglMakeCurrent(wapper.eglDisplay, wapper.eglSurface, wapper.eglSurface, wapper.eglContext)) {
-            throw new RuntimeException("eglMakeCurrent,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+    public static void makeCurrent(MediaCodecGLWapper wrapper) {
+        if (!EGL14.eglMakeCurrent(wrapper.eglDisplay, wrapper.eglSurface, wrapper.eglSurface, wrapper.eglContext)) {
+            throw new RuntimeException("makeCurrent media codec context failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
     }
 
-    public static void makeCurrent(ScreenGLWapper wapper) {
-        if (!EGL14.eglMakeCurrent(wapper.eglDisplay, wapper.eglSurface, wapper.eglSurface, wapper.eglContext)) {
-            throw new RuntimeException("eglMakeCurrent,failed:" + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+    public static void makeCurrent(ScreenGLWapper wrapper) {
+        if (!EGL14.eglMakeCurrent(wrapper.eglDisplay, wrapper.eglSurface, wrapper.eglSurface, wrapper.eglContext)) {
+            throw new RuntimeException("makeCurrent screen context failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
     }
 
-    public static void createCamFrameBuff(int[] frameBuffer, int[] frameBufferTex, int width, int height) {
+    public static void createCameraFrameBuffer(int[] frameBuffer, int[] frameBufferTex, int width, int height) {
         GLES20.glGenFramebuffers(1, frameBuffer, 0);
         GLES20.glGenTextures(1, frameBufferTex, 0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, frameBufferTex[0]);
         GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, width, height, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null);
-        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
+        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, frameBuffer[0]);
         GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, frameBufferTex[0], 0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
-        GLESTools.checkGlError("createCamFrameBuff");
+        GLESTools.checkGlError("createCameraFrameBuffer");
     }
 
     public static void enableVertex(int posLoc, int texLoc, FloatBuffer shapeBuffer, FloatBuffer texBuffer) {
@@ -306,22 +353,22 @@ public class GLHelper {
     }
 
     public static int createCamera2DProgram() {
-        return GLESTools.createProgram(VERTEXSHADER_CAMERA2D, FRAGMENTSHADER_CAMERA2D);
+        return GLESTools.createProgram(VERTEX_SHADER_CAMERA2D, FRAGMENT_SHADER_CAMERA2D);
     }
 
     public static int createCameraProgram() {
-        return GLESTools.createProgram(VERTEXSHADER, FRAGMENTSHADER_CAMERA);
+        return GLESTools.createProgram(VERTEX_SHADER, FRAGMENT_SHADER_CAMERA);
     }
 
     public static int createMediaCodecProgram() {
-        return GLESTools.createProgram(VERTEXSHADER, FRAGMENTSHADER_2D);
+        return GLESTools.createProgram(VERTEX_SHADER, FRAGMENT_SHADER_2D);
     }
 
     public static int createScreenProgram() {
-        return GLESTools.createProgram(VERTEXSHADER, FRAGMENTSHADER_2D);
+        return GLESTools.createProgram(VERTEX_SHADER, FRAGMENT_SHADER_2D);
     }
 
-    public static ShortBuffer getDrawIndecesBuffer() {
+    public static ShortBuffer getDrawIndexesBuffer() {
         ShortBuffer result = ByteBuffer.allocateDirect(SHORT_SIZE_BYTES * drawIndices.length).
                 order(ByteOrder.nativeOrder()).
                 asShortBuffer();

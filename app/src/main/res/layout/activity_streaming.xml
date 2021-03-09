@@ -47,7 +47,7 @@
         android:layout_height="match_parent"
         android:layout_marginBottom="60dp">
         <com.icechn.videorecorder.ui.AspectTextureView
-            android:id="@+id/preview_textureview"
+            android:id="@+id/preview_texture_view"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
     </FrameLayout>

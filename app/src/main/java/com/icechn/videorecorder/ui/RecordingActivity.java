@@ -42,17 +42,16 @@ public class RecordingActivity extends AppCompatActivity implements
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Intent i = getIntent();
-        mIsSquare = i.getBooleanExtra(IS_SQUARE, false);
+        mIsSquare = getIntent().getBooleanExtra(IS_SQUARE, false);
         mSaveVideoPath = Environment.getExternalStorageDirectory().getPath() + "/live_save_video" + System.currentTimeMillis() + ".mp4";
         started = false;
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_streaming);
-        mTextureView = (AspectTextureView) findViewById(R.id.preview_textureview);
+        mTextureView = findViewById(R.id.preview_texture_view);
         mTextureView.setKeepScreenOn(true);
         mTextureView.setSurfaceTextureListener(this);
 
-        btn_toggle = (Button) findViewById(R.id.btn_toggle);
+        btn_toggle = findViewById(R.id.btn_toggle);
         btn_toggle.setOnClickListener(this);
 
         findViewById(R.id.btn_swap).setOnClickListener(this);
@@ -100,7 +99,7 @@ public class RecordingActivity extends AppCompatActivity implements
         recordConfig.setVideoFPS(20);
         recordConfig.setVideoGOP(1);
         recordConfig.setRenderingMode(MediaConfig.Rending_Model_OpenGLES);
-        //camera
+        // Camera record config
         recordConfig.setDefaultCamera(Camera.CameraInfo.CAMERA_FACING_FRONT);
         int frontDirection, backDirection;
         Camera.CameraInfo cameraInfo = new Camera.CameraInfo();
@@ -109,13 +108,22 @@ public class RecordingActivity extends AppCompatActivity implements
         Camera.getCameraInfo(Camera.CameraInfo.CAMERA_FACING_BACK, cameraInfo);
         backDirection = cameraInfo.orientation;
         if (this.getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT) {
-            recordConfig.setFrontCameraDirectionMode((frontDirection == 90 ? MediaConfig.DirectionMode.FLAG_DIRECTION_ROATATION_270 : MediaConfig.DirectionMode.FLAG_DIRECTION_ROATATION_90) | MediaConfig.DirectionMode.FLAG_DIRECTION_FLIP_HORIZONTAL);
-            recordConfig.setBackCameraDirectionMode((backDirection == 90 ? MediaConfig.DirectionMode.FLAG_DIRECTION_ROATATION_90 : MediaConfig.DirectionMode.FLAG_DIRECTION_ROATATION_270));
+            recordConfig.setFrontCameraDirectionMode((frontDirection == 90
+                    ? MediaConfig.DirectionMode.FLAG_DIRECTION_ROATATION_270
+                    : MediaConfig.DirectionMode.FLAG_DIRECTION_ROATATION_90) | MediaConfig.DirectionMode.FLAG_DIRECTION_FLIP_HORIZONTAL);
+            recordConfig.setBackCameraDirectionMode((backDirection == 90
+                    ? MediaConfig.DirectionMode.FLAG_DIRECTION_ROATATION_90
+                    : MediaConfig.DirectionMode.FLAG_DIRECTION_ROATATION_270));
         } else {
-            recordConfig.setBackCameraDirectionMode((backDirection == 90 ? MediaConfig.DirectionMode.FLAG_DIRECTION_ROATATION_0 : MediaConfig.DirectionMode.FLAG_DIRECTION_ROATATION_180));
-            recordConfig.setFrontCameraDirectionMode((frontDirection == 90 ? MediaConfig.DirectionMode.FLAG_DIRECTION_ROATATION_180 : MediaConfig.DirectionMode.FLAG_DIRECTION_ROATATION_0) | MediaConfig.DirectionMode.FLAG_DIRECTION_FLIP_HORIZONTAL);
+            recordConfig.setBackCameraDirectionMode((backDirection == 90
+                    ? MediaConfig.DirectionMode.FLAG_DIRECTION_ROATATION_0
+                    : MediaConfig.DirectionMode.FLAG_DIRECTION_ROATATION_180));
+            recordConfig.setFrontCameraDirectionMode((frontDirection == 90
+                    ? MediaConfig.DirectionMode.FLAG_DIRECTION_ROATATION_180
+                    : MediaConfig.DirectionMode.FLAG_DIRECTION_ROATATION_0) | MediaConfig.DirectionMode.FLAG_DIRECTION_FLIP_HORIZONTAL);
         }
-        //save video
+
+        // save video
         recordConfig.setSaveVideoPath(mSaveVideoPath);
 
         if (!mRecorderClient.prepare(this, recordConfig)) {
@@ -126,12 +134,10 @@ public class RecordingActivity extends AppCompatActivity implements
             return;
         }
 
-        //resize textureview
-        Size s = mRecorderClient.getVideoSize();
-        mTextureView.setAspectRatio(AspectTextureView.MODE_INSIDE, ((double) s.getWidth()) / s.getHeight());
-
+        // resize TextureView
+        Size videoSize = mRecorderClient.getVideoSize();
+        mTextureView.setAspectRatio(AspectTextureView.MODE_INSIDE, ((double) videoSize.getWidth()) / videoSize.getHeight());
         mRecorderClient.setVideoChangeListener(this);
-
         mRecorderClient.setSoftAudioFilter(new SetVolumeAudioFilter());
     }
 
@@ -152,6 +158,7 @@ public class RecordingActivity extends AppCompatActivity implements
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
         if (mRecorderClient != null) {
+            Log.d("zwt", "onSurfaceTextureAvailable width - " + width + " height - " + height);
             mRecorderClient.startPreview(surface, width, height);
         }
     }
@@ -186,6 +193,7 @@ public class RecordingActivity extends AppCompatActivity implements
                 } else {
                     btn_toggle.setText("start");
                     mRecorderClient.stopRecording();
+                    Log.d("zwt", "Save video path - " + mSaveVideoPath);
                     Toast.makeText(RecordingActivity.this, "视频文件已保存至"+ mSaveVideoPath, Toast.LENGTH_SHORT).show();
                 }
                 started = !started;
