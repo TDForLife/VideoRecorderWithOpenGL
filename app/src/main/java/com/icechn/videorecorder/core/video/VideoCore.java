@@ -85,7 +85,8 @@ public class VideoCore implements IVideoCore {
             mMediaMakerConfig.mediaCodecAVCIFrameInterval = resConfig.getVideoGOP();
             mMediaMakerConfig.mediaCodecAVCFrameRate = mMediaMakerConfig.videoFPS;
             loopingInterval = 1000 / mMediaMakerConfig.videoFPS;
-            dstVideoFormat = new MediaFormat();
+            // TODO "video/avc" 应该由业务方来设置？
+            dstVideoFormat = MediaFormat.createVideoFormat("video/avc", mMediaMakerConfig.previewVideoHeight, mMediaMakerConfig.previewVideoWidth);
             videoGLHandlerThread = new HandlerThread("GLThread");
             videoGLHandlerThread.start();
             videoGLHandler = new VideoGLHandler(videoGLHandlerThread.getLooper());

@@ -65,36 +65,13 @@ public class CameraHelper {
     }
 
     public static void selectCameraPreviewWH(Camera.Parameters parameters, MediaMakerConfig config, Size targetSize) {
-
         List<Camera.Size> previewsSizes = parameters.getSupportedPreviewSizes();
-        Collections.sort(previewsSizes, new Comparator<Camera.Size>() {
-            @Override
-            public int compare(Camera.Size lhs, Camera.Size rhs) {
-                if ((lhs.width * lhs.height) > (rhs.width * rhs.height)) {
-                    return 1;
-                } else {
-                    return -1;
-                }
-            }
-        });
-        for (Camera.Size size : previewsSizes) {
-            if (size.width >= targetSize.getWidth() && size.height >= targetSize.getHeight()) {
-                config.previewVideoWidth = size.width;
-                config.previewVideoHeight = size.height;
-                return;
-            }
-        }
-
-        // 如果没有精准匹配的 Camera.Size，则使用优先尺寸
-        Camera.Size preferredSize = parameters.getPreferredPreviewSizeForVideo();
-        if (preferredSize != null) {
-            config.previewVideoWidth = preferredSize.width;
-            config.previewVideoHeight = preferredSize.height;
-            // setPreviewSize 由外部统一设置
-            // parameters.setPreviewSize(preferredSize.width, preferredSize.height);
-        }
+        // TODO 待优化选择更为恰当的不占用太多存储空间的 Size
+        Camera.Size size = getProperCameraSize(previewsSizes, targetSize.getWidth(), targetSize.getHeight(), 0.1f);
+        config.previewVideoWidth = size.width;
+        config.previewVideoHeight = size.height;
+        // setPreviewSize 由外部统一设置
     }
-
 
     public static void selectCameraPictureWH(Camera.Parameters parameters, MediaMakerConfig config, Size targetSize) {
         List<Camera.Size> pictureSizes = parameters.getSupportedPictureSizes();

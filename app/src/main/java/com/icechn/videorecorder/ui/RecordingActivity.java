@@ -30,7 +30,7 @@ import java.util.ArrayList;
 
 public class RecordingActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener, View.OnClickListener, IVideoChange {
 
-    public static final String TAG = "RecordingActivity";
+    public static final String TAG = "main";
     public static final String IS_SQUARE = "is_square";
 
     protected RecorderClient mRecorderClient;
@@ -90,13 +90,17 @@ public class RecordingActivity extends AppCompatActivity implements TextureView.
     }
 
     private void prepareStreamingClient() {
-        mRecorderClient = new RecorderClient();
+        DisplayMetrics metrics = getResources().getDisplayMetrics();
+        int screenWidth = metrics.widthPixels;
+        int screenHeight = metrics.heightPixels;
 
+        mRecorderClient = new RecorderClient();
         recordConfig = RecordConfig.obtain();
         if (mIsSquare) {
             recordConfig.setTargetVideoSize(new Size(480, 480));
         } else {
-            recordConfig.setTargetVideoSize(new Size(1280, 720));
+            // 需要加上横屏竖屏的判断为好
+            recordConfig.setTargetVideoSize(new Size(screenHeight, screenWidth));
         }
         recordConfig.setSquare(true);
         recordConfig.setBitRate(750 * 1024);
