@@ -33,28 +33,28 @@ public class MediaMakerConfig {
     public float cropRatio;
     public int previewColorFormat;
     public int previewBufferSize;
-    public int mediacodecAVCColorFormat;
-    public int mediacdoecAVCBitRate;
+    public int mediaCodecAVCColorFormat;
+    public int mediaCodecAVCBitRate;
     public int videoBufferQueueNum;
     public int audioBufferQueueNum;
-    public int audioRecoderFormat;
-    public int audioRecoderSampleRate;
-    public int audioRecoderChannelConfig;
-    public int audioRecoderSliceSize;
-    public int audioRecoderSource;
-    public int audioRecoderBufferSize;
+    public int audioRecorderFormat;
+    public int audioRecorderSampleRate;
+    public int audioRecorderChannelConfig;
+    public int audioRecorderSliceSize;
+    public int audioRecorderSource;
+    public int audioRecorderBufferSize;
     public int previewMaxFps;
     public int previewMinFps;
-    public int mediacodecAVCFrameRate;
-    public int mediacodecAVCIFrameInterval;
-    public int mediacodecAVCProfile;
-    public int mediacodecAVClevel;
+    public int mediaCodecAVCFrameRate;
+    public int mediaCodecAVCIFrameInterval;
+    public int mediaCodecAVCProfile;
+    public int mediaCodecAVCLevel;
 
-    public int mediacodecAACProfile;
-    public int mediacodecAACSampleRate;
-    public int mediacodecAACChannelCount;
-    public int mediacodecAACBitRate;
-    public int mediacodecAACMaxInputSize;
+    public int mediaCodecAACProfile;
+    public int mediaCodecAACSampleRate;
+    public int mediaCodecAACChannelCount;
+    public int mediaCodecAACBitRate;
+    public int mediaCodecAACMaxInputSize;
 
     //face detect
     public boolean isFaceDetectEnable = false;
@@ -71,19 +71,19 @@ public class MediaMakerConfig {
         videoFPS=-1;
         videoGOP=1;
         previewColorFormat = -1;
-        mediacodecAVCColorFormat = -1;
-        mediacdoecAVCBitRate = -1;
+        mediaCodecAVCColorFormat = -1;
+        mediaCodecAVCBitRate = -1;
         videoBufferQueueNum = -1;
         audioBufferQueueNum = -1;
-        mediacodecAVCFrameRate = -1;
-        mediacodecAVCIFrameInterval = -1;
-        mediacodecAVCProfile = -1;
-        mediacodecAVClevel = -1;
-        mediacodecAACProfile = -1;
-        mediacodecAACSampleRate = -1;
-        mediacodecAACChannelCount = -1;
-        mediacodecAACBitRate = -1;
-        mediacodecAACMaxInputSize = -1;
+        mediaCodecAVCFrameRate = -1;
+        mediaCodecAVCIFrameInterval = -1;
+        mediaCodecAVCProfile = -1;
+        mediaCodecAVCLevel = -1;
+        mediaCodecAACProfile = -1;
+        mediaCodecAACSampleRate = -1;
+        mediaCodecAACChannelCount = -1;
+        mediaCodecAACBitRate = -1;
+        mediaCodecAACMaxInputSize = -1;
     }
 
     public void dump() {

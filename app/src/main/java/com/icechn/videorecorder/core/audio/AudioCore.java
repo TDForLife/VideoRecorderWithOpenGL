@@ -54,7 +54,7 @@ public class AudioCore {
         int targetIndex = (lastAudioQueueBuffIndex + 1) % orignAudioBuffs.length;
         if (orignAudioBuffs[targetIndex].isReadyToFill) {
             Log.d("","queueAudio,accept ,targetIndex" + targetIndex);
-            System.arraycopy(rawAudioFrame, 0, orignAudioBuffs[targetIndex].buff, 0, mediaMakerConfig.audioRecoderBufferSize);
+            System.arraycopy(rawAudioFrame, 0, orignAudioBuffs[targetIndex].buff, 0, mediaMakerConfig.audioRecorderBufferSize);
             orignAudioBuffs[targetIndex].isReadyToFill = false;
             lastAudioQueueBuffIndex = targetIndex;
             audioFilterHandler.sendMessage(audioFilterHandler.obtainMessage(AudioFilterHandler.WHAT_INCOMING_BUFF, targetIndex, 0));
@@ -65,11 +65,11 @@ public class AudioCore {
 
     public boolean prepare(RecordConfig resConfig) {
         synchronized (syncOp) {
-            mediaMakerConfig.mediacodecAACProfile = MediaCodecInfo.CodecProfileLevel.AACObjectLC;
-            mediaMakerConfig.mediacodecAACSampleRate = 44100;
-            mediaMakerConfig.mediacodecAACChannelCount = 1;
-            mediaMakerConfig.mediacodecAACBitRate = 32 * 1024;
-            mediaMakerConfig.mediacodecAACMaxInputSize = 8820;
+            mediaMakerConfig.mediaCodecAACProfile = MediaCodecInfo.CodecProfileLevel.AACObjectLC;
+            mediaMakerConfig.mediaCodecAACSampleRate = 44100;
+            mediaMakerConfig.mediaCodecAACChannelCount = 1;
+            mediaMakerConfig.mediaCodecAACBitRate = 32 * 1024;
+            mediaMakerConfig.mediaCodecAACMaxInputSize = 8820;
 
             dstAudioFormat = new MediaFormat();
             dstAudioEncoder = MediaCodecHelper.createAudioMediaCodec(mediaMakerConfig, dstAudioFormat);
@@ -80,7 +80,7 @@ public class AudioCore {
             //audio
             //44100/10=4410,4410*2 = 8820
             int audioQueueNum = mediaMakerConfig.audioBufferQueueNum;
-            int orignAudioBuffSize = mediaMakerConfig.mediacodecAACSampleRate / 5;
+            int orignAudioBuffSize = mediaMakerConfig.mediaCodecAACSampleRate / 5;
             orignAudioBuffs = new AudioBuff[audioQueueNum];
             for (int i = 0; i < audioQueueNum; i++) {
                 orignAudioBuffs[i] = new AudioBuff(AudioFormat.ENCODING_PCM_16BIT, orignAudioBuffSize);
@@ -157,7 +157,7 @@ public class AudioCore {
         }
         audioFilter = baseSoftAudioFilter;
         if (audioFilter != null) {
-            audioFilter.onInit(mediaMakerConfig.mediacodecAACSampleRate / 5);
+            audioFilter.onInit(mediaMakerConfig.mediaCodecAACSampleRate / 5);
         }
         lockAudioFilter.unlock();
     }

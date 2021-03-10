@@ -5,7 +5,7 @@ package com.icechn.videorecorder.filter.softaudiofilter;
  * Librestreaming project.
  */
 public class SetVolumeAudioFilter extends BaseSoftAudioFilter {
-    private float volumeScale=1.0f;
+    private float volumeScale = 1.0f;
 
     public SetVolumeAudioFilter() {
     }

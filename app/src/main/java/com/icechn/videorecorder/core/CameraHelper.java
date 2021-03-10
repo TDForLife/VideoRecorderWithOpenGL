@@ -16,8 +16,9 @@ import java.util.List;
  * Created by lake on 16-3-16.
  */
 public class CameraHelper {
+    private static final String TAG = "camera";
     public static int targetFps = 30000;
-    private static int[] supportedSrcVideoFrameColorType = new int[]{ImageFormat.NV21, ImageFormat.YV12};
+    private static final int[] supportedSrcVideoFrameColorType = new int[]{ImageFormat.NV21, ImageFormat.YV12};
 
     public static boolean configCamera(Camera camera, MediaMakerConfig config) {
         Camera.Parameters parameters = camera.getParameters();
@@ -64,6 +65,7 @@ public class CameraHelper {
     }
 
     public static void selectCameraPreviewWH(Camera.Parameters parameters, MediaMakerConfig config, Size targetSize) {
+
         List<Camera.Size> previewsSizes = parameters.getSupportedPreviewSizes();
         Collections.sort(previewsSizes, new Comparator<Camera.Size>() {
             @Override
@@ -82,25 +84,93 @@ public class CameraHelper {
                 return;
             }
         }
+
+        // 如果没有精准匹配的 Camera.Size，则使用优先尺寸
+        Camera.Size preferredSize = parameters.getPreferredPreviewSizeForVideo();
+        if (preferredSize != null) {
+            config.previewVideoWidth = preferredSize.width;
+            config.previewVideoHeight = preferredSize.height;
+            // setPreviewSize 由外部统一设置
+            // parameters.setPreviewSize(preferredSize.width, preferredSize.height);
+        }
+    }
+
+
+    public static void selectCameraPictureWH(Camera.Parameters parameters, MediaMakerConfig config, Size targetSize) {
+        List<Camera.Size> pictureSizes = parameters.getSupportedPictureSizes();
+        Camera.Size size = getProperCameraSize(pictureSizes, targetSize.getWidth(), targetSize.getHeight(), 0.1f);
+        parameters.setPictureSize(size.width, size.height);
     }
 
     public static boolean selectCameraColorFormat(Camera.Parameters parameters, MediaMakerConfig config) {
         List<Integer> srcColorTypes = new LinkedList<>();
-        List<Integer> supportedPreviewFormates = parameters.getSupportedPreviewFormats();
-        for (int colortype : supportedSrcVideoFrameColorType) {
-            if (supportedPreviewFormates.contains(colortype)) {
-                srcColorTypes.add(colortype);
+        List<Integer> supportedPreviewFormatList = parameters.getSupportedPreviewFormats();
+        for (int colorType : supportedSrcVideoFrameColorType) {
+            if (supportedPreviewFormatList.contains(colorType)) {
+                srcColorTypes.add(colorType);
             }
         }
-        //select preview colorformat
+        // select preview colorFormat
         if (srcColorTypes.contains(config.previewColorFormat = ImageFormat.NV21)) {
             config.previewColorFormat = ImageFormat.NV21;
         } else if ((srcColorTypes.contains(config.previewColorFormat = ImageFormat.YV12))) {
             config.previewColorFormat = ImageFormat.YV12;
         } else {
-            Log.e("","!!!!!!!!!!!UnSupport,previewColorFormat");
+            Log.e(TAG, "selectCameraColorFormat unSupport");
             return false;
         }
         return true;
+    }
+
+    private static Camera.Size getProperCameraSize(List<Camera.Size> cameraSizeList, int width, int height, double diff) {
+
+        if (cameraSizeList == null || cameraSizeList.isEmpty()) {
+            return null;
+        }
+
+        if (width < height) {
+            int temp = height;
+            height = width;
+            width = temp;
+        }
+
+        Collections.sort(cameraSizeList, new Comparator<Camera.Size>() {
+            @Override
+            public int compare(Camera.Size lhs, Camera.Size rhs) {
+                if ((lhs.width * lhs.height) > (rhs.width * rhs.height)) {
+                    return 1;
+                } else {
+                    return -1;
+                }
+            }
+        });
+
+        double ratio = (double) width / height;
+        Camera.Size outputSize = null;
+        for (Camera.Size currentSize : cameraSizeList) {
+            double currentRatio = (double) currentSize.width / currentSize.height;
+            double currentDiff = Math.abs(currentRatio - ratio);
+            if (currentDiff > diff) {
+                continue;
+            }
+            if (outputSize == null) {
+                outputSize = currentSize;
+            } else {
+                if (outputSize.width * outputSize.height < currentSize.width * currentSize.height) {
+                    outputSize = currentSize;
+                }
+            }
+            diff = currentDiff;
+        }
+
+        if (outputSize == null) {
+            diff += 0.1f;
+            if (diff > 1.0f) {
+                outputSize = cameraSizeList.get(0);
+            } else {
+                outputSize = getProperCameraSize(cameraSizeList, width, height, diff);
+            }
+        }
+        return outputSize;
     }
 }

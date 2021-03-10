@@ -1,6 +1,5 @@
 package com.icechn.videorecorder.ui;
 
-import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
@@ -9,6 +8,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.TextureView;
 import android.view.View;
@@ -28,13 +28,15 @@ import com.icechn.videorecorder.model.Size;
 import java.util.ArrayList;
 
 
-public class RecordingActivity extends AppCompatActivity implements
-        TextureView.SurfaceTextureListener, View.OnClickListener, IVideoChange {
+public class RecordingActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener, View.OnClickListener, IVideoChange {
+
+    public static final String TAG = "RecordingActivity";
     public static final String IS_SQUARE = "is_square";
+
     protected RecorderClient mRecorderClient;
     protected AspectTextureView mTextureView;
-    protected Handler mainHander;
-    protected Button btn_toggle;
+    protected Handler mainHandler;
+    protected Button startRecordButton;
     protected boolean started;
     protected String mSaveVideoPath = null;
     protected boolean mIsSquare = false;
@@ -51,14 +53,16 @@ public class RecordingActivity extends AppCompatActivity implements
         mTextureView.setKeepScreenOn(true);
         mTextureView.setSurfaceTextureListener(this);
 
-        btn_toggle = findViewById(R.id.btn_toggle);
-        btn_toggle.setOnClickListener(this);
+        startRecordButton = findViewById(R.id.btn_toggle);
+        startRecordButton.setOnClickListener(this);
 
         findViewById(R.id.btn_swap).setOnClickListener(this);
         findViewById(R.id.btn_flash).setOnClickListener(this);
 
         prepareStreamingClient();
         onSetFilters();
+
+        printScreenDisplayInfo();
     }
 
     @Override
@@ -73,8 +77,8 @@ public class RecordingActivity extends AppCompatActivity implements
 
     @Override
     protected void onDestroy() {
-        if (mainHander != null) {
-            mainHander.removeCallbacksAndMessages(null);
+        if (mainHandler != null) {
+            mainHandler.removeCallbacksAndMessages(null);
         }
         if (started) {
             mRecorderClient.stopRecording();
@@ -92,7 +96,7 @@ public class RecordingActivity extends AppCompatActivity implements
         if (mIsSquare) {
             recordConfig.setTargetVideoSize(new Size(480, 480));
         } else {
-            recordConfig.setTargetVideoSize(new Size(640, 480));
+            recordConfig.setTargetVideoSize(new Size(1280, 720));
         }
         recordConfig.setSquare(true);
         recordConfig.setBitRate(750 * 1024);
@@ -136,6 +140,7 @@ public class RecordingActivity extends AppCompatActivity implements
 
         // resize TextureView
         Size videoSize = mRecorderClient.getVideoSize();
+        Log.d(TAG, "VideoSize = " + videoSize.toString());
         mTextureView.setAspectRatio(AspectTextureView.MODE_INSIDE, ((double) videoSize.getWidth()) / videoSize.getHeight());
         mRecorderClient.setVideoChangeListener(this);
         mRecorderClient.setSoftAudioFilter(new SetVolumeAudioFilter());
@@ -158,7 +163,7 @@ public class RecordingActivity extends AppCompatActivity implements
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
         if (mRecorderClient != null) {
-            Log.d("zwt", "onSurfaceTextureAvailable width - " + width + " height - " + height);
+            Log.d(TAG, "onSurfaceTextureAvailable width - " + width + " height - " + height);
             mRecorderClient.startPreview(surface, width, height);
         }
     }
@@ -188,12 +193,12 @@ public class RecordingActivity extends AppCompatActivity implements
         switch (v.getId()) {
             case R.id.btn_toggle:
                 if (!started) {
-                    btn_toggle.setText("stop");
+                    startRecordButton.setText("stop");
                     mRecorderClient.startRecording();
                 } else {
-                    btn_toggle.setText("start");
+                    startRecordButton.setText("start");
                     mRecorderClient.stopRecording();
-                    Log.d("zwt", "Save video path - " + mSaveVideoPath);
+                    Log.d(TAG, "Save video path - " + mSaveVideoPath);
                     Toast.makeText(RecordingActivity.this, "视频文件已保存至"+ mSaveVideoPath, Toast.LENGTH_SHORT).show();
                 }
                 started = !started;
@@ -208,5 +213,12 @@ public class RecordingActivity extends AppCompatActivity implements
         }
     }
 
+    private void printScreenDisplayInfo() {
+        DisplayMetrics metrics = getResources().getDisplayMetrics();
+        int screenWidth = metrics.widthPixels;
+        int screenHeight = metrics.heightPixels;
+        int screenDensity = metrics.densityDpi;
+        Log.d(TAG, "Screen info : size - " + screenWidth + " x " + screenHeight + " and density - " + screenDensity);
+    }
 
 }

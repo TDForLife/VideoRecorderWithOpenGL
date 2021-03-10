@@ -15,6 +15,7 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
+import android.util.Log;
 import android.view.Surface;
 
 import com.icechn.videorecorder.client.CallbackDelivery;
@@ -42,8 +43,12 @@ import java.util.concurrent.locks.ReentrantLock;
  * Created by lake on 16-5-24.
  */
 public class VideoCore implements IVideoCore {
-    private MediaMakerConfig mediaMakerConfig;
-    private final Object syncOp = new Object();
+
+    private static final String TAG = "VideoCore";
+
+    private final Object mSyncObj = new Object();
+    private final MediaMakerConfig mMediaMakerConfig;
+
     // filter
     private Lock lockVideoFilter;
     private BaseHardVideoFilter videoFilter;
@@ -61,7 +66,7 @@ public class VideoCore implements IVideoCore {
     private int loopingInterval;
 
     public VideoCore(MediaMakerConfig parameters) {
-        mediaMakerConfig = parameters;
+        mMediaMakerConfig = parameters;
         lockVideoFilter = new ReentrantLock(false);
     }
 
@@ -73,13 +78,13 @@ public class VideoCore implements IVideoCore {
 
     @Override
     public boolean prepare(RecordConfig resConfig) {
-        synchronized (syncOp) {
-            mediaMakerConfig.renderingMode = resConfig.getRenderingMode();
-            mediaMakerConfig.mediacdoecAVCBitRate = resConfig.getBitRate();
-            mediaMakerConfig.videoBufferQueueNum = resConfig.getVideoBufferQueueNum();
-            mediaMakerConfig.mediacodecAVCIFrameInterval = resConfig.getVideoGOP();
-            mediaMakerConfig.mediacodecAVCFrameRate = mediaMakerConfig.videoFPS;
-            loopingInterval = 1000 / mediaMakerConfig.videoFPS;
+        synchronized (mSyncObj) {
+            mMediaMakerConfig.renderingMode = resConfig.getRenderingMode();
+            mMediaMakerConfig.mediaCodecAVCBitRate = resConfig.getBitRate();
+            mMediaMakerConfig.videoBufferQueueNum = resConfig.getVideoBufferQueueNum();
+            mMediaMakerConfig.mediaCodecAVCIFrameInterval = resConfig.getVideoGOP();
+            mMediaMakerConfig.mediaCodecAVCFrameRate = mMediaMakerConfig.videoFPS;
+            loopingInterval = 1000 / mMediaMakerConfig.videoFPS;
             dstVideoFormat = new MediaFormat();
             videoGLHandlerThread = new HandlerThread("GLThread");
             videoGLHandlerThread.start();
@@ -91,7 +96,7 @@ public class VideoCore implements IVideoCore {
 
     @Override
     public void startPreview(SurfaceTexture surfaceTexture, int visualWidth, int visualHeight) {
-        synchronized (syncOp) {
+        synchronized (mSyncObj) {
             videoGLHandler.sendMessage(videoGLHandler.obtainMessage(VideoGLHandler.WHAT_START_PREVIEW,
                     visualWidth, visualHeight, surfaceTexture));
             synchronized (syncIsLooping) {
@@ -107,7 +112,7 @@ public class VideoCore implements IVideoCore {
 
     @Override
     public void updatePreview(int visualWidth, int visualHeight) {
-        synchronized (syncOp) {
+        synchronized (mSyncObj) {
             synchronized (syncPreview) {
                 videoGLHandler.updatePreviewSize(visualWidth, visualHeight);
             }
@@ -116,7 +121,7 @@ public class VideoCore implements IVideoCore {
 
     @Override
     public void stopPreview(boolean releaseTexture) {
-        synchronized (syncOp) {
+        synchronized (mSyncObj) {
             videoGLHandler.sendMessage(videoGLHandler.obtainMessage(VideoGLHandler.WHAT_STOP_PREVIEW, releaseTexture));
             synchronized (syncIsLooping) {
                 isPreviewing = false;
@@ -126,7 +131,7 @@ public class VideoCore implements IVideoCore {
 
     @Override
     public boolean startRecording(MediaMuxerWrapper muxer) {
-        synchronized (syncOp) {
+        synchronized (mSyncObj) {
             videoGLHandler.sendMessage(videoGLHandler.obtainMessage(VideoGLHandler.WHAT_START_RECORDING, muxer));
             synchronized (syncIsLooping) {
                 if (!isPreviewing && !isStreaming) {
@@ -141,7 +146,7 @@ public class VideoCore implements IVideoCore {
 
     @Override
     public void updateCamTexture(SurfaceTexture camTex) {
-        synchronized (syncOp) {
+        synchronized (mSyncObj) {
             if (videoGLHandler != null) {
                 videoGLHandler.updateCameraTexture(camTex);
             }
@@ -150,7 +155,7 @@ public class VideoCore implements IVideoCore {
 
     @Override
     public boolean stopRecording() {
-        synchronized (syncOp) {
+        synchronized (mSyncObj) {
             videoGLHandler.sendEmptyMessage(VideoGLHandler.WHAT_STOP_RECORDING);
             synchronized (syncIsLooping) {
                 isStreaming = false;
@@ -161,7 +166,7 @@ public class VideoCore implements IVideoCore {
 
     @Override
     public boolean destroy() {
-        synchronized (syncOp) {
+        synchronized (mSyncObj) {
             videoGLHandler.sendEmptyMessage(VideoGLHandler.WHAT_UNINIT);
             if (videoGLHandlerThread != null) {
                 videoGLHandlerThread.quitSafely();
@@ -178,7 +183,7 @@ public class VideoCore implements IVideoCore {
 
     @Override
     public void setCurrentCamera(int cameraIndex) {
-        synchronized (syncOp) {
+        synchronized (mSyncObj) {
             if (videoGLHandler != null) {
                 videoGLHandler.updateCameraIndex(cameraIndex);
             }
@@ -191,16 +196,17 @@ public class VideoCore implements IVideoCore {
         if (videoFilter != null) {
             int previewWidth;
             int previewHeight;
-            if (mediaMakerConfig.isPortrait) {
-                previewWidth = mediaMakerConfig.previewVideoWidth;
-                previewHeight = mediaMakerConfig.previewVideoHeight;
+            if (mMediaMakerConfig.isPortrait) {
+                previewWidth = mMediaMakerConfig.previewVideoWidth;
+                previewHeight = mMediaMakerConfig.previewVideoHeight;
             } else {
-                previewWidth = mediaMakerConfig.previewVideoHeight;
-                previewHeight = mediaMakerConfig.previewVideoWidth;
+                previewWidth = mMediaMakerConfig.previewVideoHeight;
+                previewHeight = mMediaMakerConfig.previewVideoWidth;
             }
+            Log.d(TAG, "VideoFilter preView size is " + previewWidth + " x " + previewHeight);
             videoFilter.updatePreviewSize(previewWidth, previewHeight);
-            videoFilter.updateSquareFlag(mediaMakerConfig.isSquare);
-            videoFilter.updateCropRatio(mediaMakerConfig.cropRatio);
+            videoFilter.updateSquareFlag(mMediaMakerConfig.isSquare);
+            videoFilter.updateCropRatio(mMediaMakerConfig.cropRatio);
         }
         lockVideoFilter.unlock();
     }
@@ -354,7 +360,7 @@ public class VideoCore implements IVideoCore {
                 break;
                 case WHAT_START_RECORDING: {
                     if (dstVideoEncoder == null) {
-                        dstVideoEncoder = MediaCodecHelper.createHardVideoMediaCodec(mediaMakerConfig, dstVideoFormat);
+                        dstVideoEncoder = MediaCodecHelper.createHardVideoMediaCodec(mMediaMakerConfig, dstVideoFormat);
                         if (dstVideoEncoder == null) {
                             throw new RuntimeException("create Video MediaCodec failed");
                         }
@@ -392,16 +398,16 @@ public class VideoCore implements IVideoCore {
                 break;
                 case WHAT_RESET_VIDEO: {
                     MediaMakerConfig newParameters = (MediaMakerConfig) msg.obj;
-                    mediaMakerConfig.videoWidth = newParameters.videoWidth;
-                    mediaMakerConfig.videoHeight = newParameters.videoHeight;
-                    mediaMakerConfig.cropRatio = newParameters.cropRatio;
+                    mMediaMakerConfig.videoWidth = newParameters.videoWidth;
+                    mMediaMakerConfig.videoHeight = newParameters.videoHeight;
+                    mMediaMakerConfig.cropRatio = newParameters.cropRatio;
                     updateCameraIndex(currCamera);
                     resetFrameBuff();
                     if (mediaCodecGLWapper != null) {
                         destroyMediaCodecGL();
                         dstVideoEncoder.stop();
                         dstVideoEncoder.release();
-                        dstVideoEncoder = MediaCodecHelper.createHardVideoMediaCodec(mediaMakerConfig, dstVideoFormat);
+                        dstVideoEncoder = MediaCodecHelper.createHardVideoMediaCodec(mMediaMakerConfig, dstVideoFormat);
                         if (dstVideoEncoder == null) {
                             throw new RuntimeException("create Video MediaCodec failed");
                         }
@@ -413,8 +419,8 @@ public class VideoCore implements IVideoCore {
                     synchronized (syncVideoChangeListener) {
                         if (mVideoChangeListener != null) {
                             CallbackDelivery.getInstance().post(new VideoChangeRunable(mVideoChangeListener,
-                                    mediaMakerConfig.videoWidth,
-                                    mediaMakerConfig.videoHeight));
+                                    mMediaMakerConfig.videoWidth,
+                                    mMediaMakerConfig.videoHeight));
                         }
                     }
                 }
@@ -446,7 +452,7 @@ public class VideoCore implements IVideoCore {
             float[] textureMatrix = new float[16];
             cameraTexture.getTransformMatrix(textureMatrix);
             GLES20.glUniformMatrix4fv(offScreenGLWrapper.cam2dTextureMatrixLocation, 1, false, textureMatrix, 0);
-            GLES20.glViewport(0, 0, mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
+            GLES20.glViewport(0, 0, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
 
             doGLDraw();
 
@@ -469,7 +475,7 @@ public class VideoCore implements IVideoCore {
                 GLHelper.enableVertex(offScreenGLWrapper.camPositionLocation, offScreenGLWrapper.camTextureCoordsLocation,
                         shapeVerticesBuffer, cameraTextureVerticesBuffer);
             }
-            GLES20.glViewport(0, 0, mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
+            GLES20.glViewport(0, 0, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
             doGLDraw();
             GLES20.glFinish();
             GLHelper.disableVertex(offScreenGLWrapper.camPositionLocation, offScreenGLWrapper.camTextureCoordsLocation);
@@ -488,7 +494,7 @@ public class VideoCore implements IVideoCore {
                     }
                     innerVideoFilter = videoFilter;
                     if (innerVideoFilter != null) {
-                        innerVideoFilter.onInit(mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
+                        innerVideoFilter.onInit(mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
                     }
                 }
                 if (innerVideoFilter != null) {
@@ -592,10 +598,10 @@ public class VideoCore implements IVideoCore {
 
                 int[] fb = new int[1];
                 int[] fbTexture = new int[1];
-                GLHelper.createCameraFrameBuffer(fb, fbTexture, mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
+                GLHelper.createCameraFrameBuffer(fb, fbTexture, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
                 sample2DFrameBuffer = fb[0];
                 sample2DFrameBufferTexture = fbTexture[0];
-                GLHelper.createCameraFrameBuffer(fb, fbTexture, mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
+                GLHelper.createCameraFrameBuffer(fb, fbTexture, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
                 frameBuffer = fb[0];
                 frameBufferTexture = fbTexture[0];
             } else {
@@ -688,10 +694,10 @@ public class VideoCore implements IVideoCore {
             GLES20.glDeleteFramebuffers(1, new int[]{sample2DFrameBuffer}, 0);
             GLES20.glDeleteTextures(1, new int[]{sample2DFrameBufferTexture}, 0);
             int[] fb = new int[1], fbt = new int[1];
-            GLHelper.createCameraFrameBuffer(fb, fbt, mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
+            GLHelper.createCameraFrameBuffer(fb, fbt, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
             sample2DFrameBuffer = fb[0];
             sample2DFrameBufferTexture = fbt[0];
-            GLHelper.createCameraFrameBuffer(fb, fbt, mediaMakerConfig.videoWidth, mediaMakerConfig.videoHeight);
+            GLHelper.createCameraFrameBuffer(fb, fbt, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
             frameBuffer = fb[0];
             frameBufferTexture = fbt[0];
         }
@@ -709,11 +715,11 @@ public class VideoCore implements IVideoCore {
             synchronized (syncCameraBufferObj) {
                 currCamera = cameraIndex;
                 if (currCamera == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-                    directionFlag = mediaMakerConfig.frontCameraDirectionMode ^ MediaConfig.DirectionMode.FLAG_DIRECTION_FLIP_HORIZONTAL;
+                    directionFlag = mMediaMakerConfig.frontCameraDirectionMode ^ MediaConfig.DirectionMode.FLAG_DIRECTION_FLIP_HORIZONTAL;
                 } else {
-                    directionFlag = mediaMakerConfig.backCameraDirectionMode;
+                    directionFlag = mMediaMakerConfig.backCameraDirectionMode;
                 }
-                camera2dTextureVerticesBuffer = GLHelper.getCamera2DTextureVerticesBuffer(directionFlag, mediaMakerConfig.cropRatio);
+                camera2dTextureVerticesBuffer = GLHelper.getCamera2DTextureVerticesBuffer(directionFlag, mMediaMakerConfig.cropRatio);
             }
         }
 

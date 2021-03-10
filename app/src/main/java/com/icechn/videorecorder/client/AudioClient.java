@@ -34,12 +34,12 @@ public class AudioClient {
                 Log.e("","AudioClient,prepare");
                 return false;
             }
-            mediaMakerConfig.audioRecoderFormat = AudioFormat.ENCODING_PCM_16BIT;
-            mediaMakerConfig.audioRecoderChannelConfig = AudioFormat.CHANNEL_IN_MONO;
-            mediaMakerConfig.audioRecoderSliceSize = mediaMakerConfig.mediacodecAACSampleRate / 10;
-            mediaMakerConfig.audioRecoderBufferSize = mediaMakerConfig.audioRecoderSliceSize * 2;
-            mediaMakerConfig.audioRecoderSource = MediaRecorder.AudioSource.DEFAULT;
-            mediaMakerConfig.audioRecoderSampleRate = mediaMakerConfig.mediacodecAACSampleRate;
+            mediaMakerConfig.audioRecorderFormat = AudioFormat.ENCODING_PCM_16BIT;
+            mediaMakerConfig.audioRecorderChannelConfig = AudioFormat.CHANNEL_IN_MONO;
+            mediaMakerConfig.audioRecorderSliceSize = mediaMakerConfig.mediaCodecAACSampleRate / 10;
+            mediaMakerConfig.audioRecorderBufferSize = mediaMakerConfig.audioRecorderSliceSize * 2;
+            mediaMakerConfig.audioRecorderSource = MediaRecorder.AudioSource.DEFAULT;
+            mediaMakerConfig.audioRecorderSampleRate = mediaMakerConfig.mediaCodecAACSampleRate;
             prepareAudio();
             return true;
         }
@@ -90,21 +90,21 @@ public class AudioClient {
     }
 
     private boolean prepareAudio() {
-        int minBufferSize = AudioRecord.getMinBufferSize(mediaMakerConfig.audioRecoderSampleRate,
-                mediaMakerConfig.audioRecoderChannelConfig,
-                mediaMakerConfig.audioRecoderFormat);
-        audioRecord = new AudioRecord(mediaMakerConfig.audioRecoderSource,
-                mediaMakerConfig.audioRecoderSampleRate,
-                mediaMakerConfig.audioRecoderChannelConfig,
-                mediaMakerConfig.audioRecoderFormat,
+        int minBufferSize = AudioRecord.getMinBufferSize(mediaMakerConfig.audioRecorderSampleRate,
+                mediaMakerConfig.audioRecorderChannelConfig,
+                mediaMakerConfig.audioRecorderFormat);
+        audioRecord = new AudioRecord(mediaMakerConfig.audioRecorderSource,
+                mediaMakerConfig.audioRecorderSampleRate,
+                mediaMakerConfig.audioRecorderChannelConfig,
+                mediaMakerConfig.audioRecorderFormat,
                 minBufferSize * 5);
-        audioBuffer = new byte[mediaMakerConfig.audioRecoderBufferSize];
+        audioBuffer = new byte[mediaMakerConfig.audioRecorderBufferSize];
         if (AudioRecord.STATE_INITIALIZED != audioRecord.getState()) {
             Log.e("","audioRecord.getState()!=AudioRecord.STATE_INITIALIZED!");
             return false;
         }
-        if (AudioRecord.SUCCESS != audioRecord.setPositionNotificationPeriod(mediaMakerConfig.audioRecoderSliceSize)) {
-            Log.e("","AudioRecord.SUCCESS != audioRecord.setPositionNotificationPeriod(" + mediaMakerConfig.audioRecoderSliceSize + ")");
+        if (AudioRecord.SUCCESS != audioRecord.setPositionNotificationPeriod(mediaMakerConfig.audioRecorderSliceSize)) {
+            Log.e("","AudioRecord.SUCCESS != audioRecord.setPositionNotificationPeriod(" + mediaMakerConfig.audioRecorderSliceSize + ")");
             return false;
         }
         return true;

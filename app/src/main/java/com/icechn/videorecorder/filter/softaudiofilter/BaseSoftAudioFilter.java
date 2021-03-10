@@ -10,11 +10,10 @@ public class BaseSoftAudioFilter {
 
     public void onInit(int size) {
         SIZE = size;
-        SIZE_HALF = size/2;
+        SIZE_HALF = size / 2;
     }
 
     /**
-     *
      * @param originBuff
      * @param targetBuff
      * @param presentationTimeMs

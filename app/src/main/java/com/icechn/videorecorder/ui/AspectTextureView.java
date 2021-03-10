@@ -65,6 +65,7 @@ public class AspectTextureView extends TextureView {
                         initialHeight = (int) (initialWidth / targetAspect);
                     }
                 }
+
                 widthMeasureSpec = MeasureSpec.makeMeasureSpec(initialWidth, MeasureSpec.EXACTLY);
                 heightMeasureSpec = MeasureSpec.makeMeasureSpec(initialHeight, MeasureSpec.EXACTLY);
             }

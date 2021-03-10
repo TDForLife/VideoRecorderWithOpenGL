@@ -18,9 +18,9 @@ public class MediaCodecHelper {
         videoFormat.setString(MediaFormat.KEY_MIME, "video/avc");
         videoFormat.setInteger(MediaFormat.KEY_WIDTH, config.videoWidth);
         videoFormat.setInteger(MediaFormat.KEY_HEIGHT, config.videoHeight);
-        videoFormat.setInteger(MediaFormat.KEY_BIT_RATE, config.mediacdoecAVCBitRate);
-        videoFormat.setInteger(MediaFormat.KEY_FRAME_RATE, config.mediacodecAVCFrameRate);
-        videoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, config.mediacodecAVCIFrameInterval);
+        videoFormat.setInteger(MediaFormat.KEY_BIT_RATE, config.mediaCodecAVCBitRate);
+        videoFormat.setInteger(MediaFormat.KEY_FRAME_RATE, config.mediaCodecAVCFrameRate);
+        videoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, config.mediaCodecAVCIFrameInterval);
         videoFormat.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline);
         videoFormat.setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.AVCLevel31);
         videoFormat.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR);
@@ -33,11 +33,11 @@ public class MediaCodecHelper {
             //select mediacodec colorformat
             if (isArrayContain(colorful, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar)) {
                 dstVideoColorFormat = MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar;
-                config.mediacodecAVCColorFormat = MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar;
+                config.mediaCodecAVCColorFormat = MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar;
             }
             if (dstVideoColorFormat == -1 && isArrayContain(colorful, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar)) {
                 dstVideoColorFormat = MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar;
-                config.mediacodecAVCColorFormat = MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar;
+                config.mediaCodecAVCColorFormat = MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar;
             }
             if (dstVideoColorFormat == -1) {
                 Log.e("","!!!!!!!!!!!UnSupport,mediaCodecColorFormat");
@@ -69,11 +69,11 @@ public class MediaCodecHelper {
         //Audio
         MediaCodec result;
         audioFormat.setString(MediaFormat.KEY_MIME, "audio/mp4a-latm");
-        audioFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, config.mediacodecAACProfile);
-        audioFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, config.mediacodecAACSampleRate);
-        audioFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, config.mediacodecAACChannelCount);
-        audioFormat.setInteger(MediaFormat.KEY_BIT_RATE, config.mediacodecAACBitRate);
-        audioFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, config.mediacodecAACMaxInputSize);
+        audioFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, config.mediaCodecAACProfile);
+        audioFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, config.mediaCodecAACSampleRate);
+        audioFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, config.mediaCodecAACChannelCount);
+        audioFormat.setInteger(MediaFormat.KEY_BIT_RATE, config.mediaCodecAACBitRate);
+        audioFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, config.mediaCodecAACMaxInputSize);
         Log.d("","creatingAudioEncoder,format=" + audioFormat.toString());
         try {
             result = MediaCodec.createEncoderByType(audioFormat.getString(MediaFormat.KEY_MIME));
@@ -89,9 +89,9 @@ public class MediaCodecHelper {
         videoFormat.setInteger(MediaFormat.KEY_WIDTH, config.videoWidth);
         videoFormat.setInteger(MediaFormat.KEY_HEIGHT, config.videoHeight);
         videoFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        videoFormat.setInteger(MediaFormat.KEY_BIT_RATE, config.mediacdoecAVCBitRate);
-        videoFormat.setInteger(MediaFormat.KEY_FRAME_RATE, config.mediacodecAVCFrameRate);
-        videoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, config.mediacodecAVCIFrameInterval);
+        videoFormat.setInteger(MediaFormat.KEY_BIT_RATE, config.mediaCodecAVCBitRate);
+        videoFormat.setInteger(MediaFormat.KEY_FRAME_RATE, config.mediaCodecAVCFrameRate);
+        videoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, config.mediaCodecAVCIFrameInterval);
         videoFormat.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline);
         videoFormat.setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.AVCLevel31);
         videoFormat.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR);

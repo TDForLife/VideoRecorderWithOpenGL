@@ -53,6 +53,7 @@ public class VideoClient {
             if ((mCameraNum - 1) >= config.getDefaultCamera()) {
                 mCurrentCameraIndex = config.getDefaultCamera();
                 mIsFrontCamera = mCurrentCameraIndex == CameraInfo.CAMERA_FACING_FRONT;
+                Log.d(TAG, "Prepare camera which is front ? " + mIsFrontCamera);
             }
             if (null == (mCamera = createCamera(mCurrentCameraIndex))) {
                 Log.e(TAG, "Prepare can not open camera");
@@ -60,6 +61,7 @@ public class VideoClient {
             }
             Camera.Parameters parameters = mCamera.getParameters();
             CameraHelper.selectCameraPreviewWH(parameters, mMediaMakerConfig, config.getTargetVideoSize());
+            CameraHelper.selectCameraPictureWH(parameters, mMediaMakerConfig, config.getTargetVideoSize());
             CameraHelper.selectCameraFpsRange(parameters, mMediaMakerConfig);
             mMediaMakerConfig.videoFPS = Math.min(config.getVideoFPS(), mMediaMakerConfig.previewMaxFps / 1000);
             resolveResolution(mMediaMakerConfig, config.getTargetVideoSize());
@@ -331,6 +333,8 @@ public class VideoClient {
         } else {
             config.cropRatio = -(1.0f - pr / vr) / 2.0f;
         }
+        Log.d(TAG, "resolveResolution preview size - " + pw + " x " + ph + ", video size - " + vw + " x " + vh);
+        Log.d(TAG, "resolveResolution preview aspect ratio - " + pr + " and video aspect ratio - " + vr + " then cropRatio - " + config.cropRatio);
     }
 
 
