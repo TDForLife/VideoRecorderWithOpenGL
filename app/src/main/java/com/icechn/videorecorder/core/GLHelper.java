@@ -75,6 +75,7 @@ public class GLHelper {
      * 使用 OES 纹理后，我们不需要在片段着色器中自己做 YUV to RGBA 的转换，因为 OES 纹理可以直接接收 YUV 数据或者直接输出 YUV 数据
      * samplerExternalOES 是 Android 用来渲染相机数据，相应的，需要绑定到 GL_TEXTURE_EXTERNAL_OES
      * sampler2D 则用于渲染图片，绑定 GL_TEXTURE_2D
+     * https://juejin.cn/post/6844903834523811853
      */
     private static final String FRAGMENT_SHADER_CAMERA2D = "" +
             "#extension GL_OES_EGL_image_external : require\n" +
@@ -427,7 +428,9 @@ public class GLHelper {
             default:
                 buffer = Cam2dTextureVertices.clone();
         }
-        if ((directionFlag & 0xF0) == MediaMakerConfig.FLAG_DIRECTION_ROATATION_0 || (directionFlag & 0xF0) == MediaMakerConfig.FLAG_DIRECTION_ROATATION_180) {
+
+        if ((directionFlag & 0xF0) == MediaMakerConfig.FLAG_DIRECTION_ROATATION_0
+                || (directionFlag & 0xF0) == MediaMakerConfig.FLAG_DIRECTION_ROATATION_180) {
             if (cropRatio > 0) {
                 buffer[1] = buffer[1] == 1.0f ? (1.0f - cropRatio) : cropRatio;
                 buffer[3] = buffer[3] == 1.0f ? (1.0f - cropRatio) : cropRatio;
@@ -453,7 +456,6 @@ public class GLHelper {
             }
         }
 
-
         if ((directionFlag & MediaMakerConfig.FLAG_DIRECTION_FLIP_HORIZONTAL) != 0) {
             buffer[0] = flip(buffer[0]);
             buffer[2] = flip(buffer[2]);
@@ -466,6 +468,7 @@ public class GLHelper {
             buffer[5] = flip(buffer[5]);
             buffer[7] = flip(buffer[7]);
         }
+
         FloatBuffer result = ByteBuffer.allocateDirect(FLOAT_SIZE_BYTES * buffer.length).
                 order(ByteOrder.nativeOrder()).
                 asFloatBuffer();

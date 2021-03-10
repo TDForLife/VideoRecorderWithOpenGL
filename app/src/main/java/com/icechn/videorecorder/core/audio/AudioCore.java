@@ -203,7 +203,7 @@ public class AudioCore {
                         orignAudioBuff.buff, 0, orignAudioBuff.buff.length);
                 orignAudioBuffs[targetIndex].isReadyToFill = true;
             }
-            //orignAudioBuff is ready
+            // originAudioBuff is ready
             int eibIndex = dstAudioEncoder.dequeueInputBuffer(-1);
             if (eibIndex >= 0) {
                 ByteBuffer dstAudioEncoderIBuffer = dstAudioEncoder.getInputBuffers()[eibIndex];

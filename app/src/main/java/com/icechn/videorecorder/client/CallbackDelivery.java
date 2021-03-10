@@ -2,6 +2,7 @@ package com.icechn.videorecorder.client;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.support.annotation.NonNull;
 
 import java.util.concurrent.Executor;
 
@@ -9,19 +10,20 @@ import java.util.concurrent.Executor;
  * Created by lake on 16-4-11.
  */
 public class CallbackDelivery {
-    static private CallbackDelivery instance;
-    private final Executor mCallbackPoster;
-    private final Handler handler = new Handler(Looper.getMainLooper());
 
-    public static CallbackDelivery i() {
-        return instance == null ? instance = new CallbackDelivery() : instance;
+    private static CallbackDelivery sInstance;
+    private final Executor mCallbackPoster;
+    private final Handler mHandler = new Handler(Looper.getMainLooper());
+
+    public static CallbackDelivery getInstance() {
+        return sInstance == null ? sInstance = new CallbackDelivery() : sInstance;
     }
 
     private CallbackDelivery() {
         mCallbackPoster = new Executor() {
             @Override
-            public void execute(Runnable command) {
-                handler.post(command);
+            public void execute(@NonNull Runnable command) {
+                mHandler.post(command);
             }
         };
     }

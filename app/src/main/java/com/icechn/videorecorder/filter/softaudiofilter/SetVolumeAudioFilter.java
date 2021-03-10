@@ -11,19 +11,19 @@ public class SetVolumeAudioFilter extends BaseSoftAudioFilter {
     }
 
     /**
-     * @param scale 0.0~
+     * @param scale 0.0
      */
     public void setVolumeScale(float scale) {
         volumeScale = scale;
     }
 
     @Override
-    public boolean onFrame(byte[] orignBuff, byte[] targetBuff, long presentationTimeMs, int sequenceNum) {
+    public boolean onFrame(byte[] originBuff, byte[] targetBuff, long presentationTimeMs, int sequenceNum) {
         for (int i = 0; i < SIZE; i += 2) {
-            short origin = (short) (((orignBuff[i + 1] << 8) | orignBuff[i] & 0xff));
+            short origin = (short) (((originBuff[i + 1] << 8) | originBuff[i] & 0xff));
             origin = (short) (origin * volumeScale);
-            orignBuff[i + 1] = (byte) (origin >> 8);
-            orignBuff[i] = (byte) (origin);
+            originBuff[i + 1] = (byte) (origin >> 8);
+            originBuff[i] = (byte) (origin);
         }
         return false;
     }

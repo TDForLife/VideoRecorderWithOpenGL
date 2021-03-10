@@ -23,7 +23,7 @@ public class MediaMakerConfig {
     public int renderingMode;
     public int frontCameraDirectionMode;
     public int backCameraDirectionMode;
-    public boolean isPortrait;
+    public boolean isPortrait; // 是否竖屏
     public int previewVideoWidth;
     public int previewVideoHeight;
     public int videoWidth;

@@ -15,7 +15,6 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
-import android.util.Log;
 import android.view.Surface;
 
 import com.icechn.videorecorder.client.CallbackDelivery;
@@ -52,7 +51,7 @@ public class VideoCore implements IVideoCore {
     private MediaFormat dstVideoFormat;
     private final Object syncPreview = new Object();
     private HandlerThread videoGLHandlerThread;
-    private VideoGLHandler videoGLHander;
+    private VideoGLHandler videoGLHandler;
 
     final private Object syncVideoChangeListener = new Object();
     private IVideoChange mVideoChangeListener;
@@ -68,7 +67,7 @@ public class VideoCore implements IVideoCore {
 
     public void onFrameAvailable() {
         if (videoGLHandlerThread != null) {
-            videoGLHander.addFrameNum();
+            videoGLHandler.addFrameNum();
         }
     }
 
@@ -84,8 +83,8 @@ public class VideoCore implements IVideoCore {
             dstVideoFormat = new MediaFormat();
             videoGLHandlerThread = new HandlerThread("GLThread");
             videoGLHandlerThread.start();
-            videoGLHander = new VideoGLHandler(videoGLHandlerThread.getLooper());
-            videoGLHander.sendEmptyMessage(VideoGLHandler.WHAT_INIT);
+            videoGLHandler = new VideoGLHandler(videoGLHandlerThread.getLooper());
+            videoGLHandler.sendEmptyMessage(VideoGLHandler.WHAT_INIT);
             return true;
         }
     }
@@ -93,12 +92,12 @@ public class VideoCore implements IVideoCore {
     @Override
     public void startPreview(SurfaceTexture surfaceTexture, int visualWidth, int visualHeight) {
         synchronized (syncOp) {
-            videoGLHander.sendMessage(videoGLHander.obtainMessage(VideoGLHandler.WHAT_START_PREVIEW,
+            videoGLHandler.sendMessage(videoGLHandler.obtainMessage(VideoGLHandler.WHAT_START_PREVIEW,
                     visualWidth, visualHeight, surfaceTexture));
             synchronized (syncIsLooping) {
                 if (!isPreviewing && !isStreaming) {
-                    videoGLHander.removeMessages(VideoGLHandler.WHAT_DRAW);
-                    videoGLHander.sendMessageDelayed(videoGLHander.obtainMessage(VideoGLHandler.WHAT_DRAW,
+                    videoGLHandler.removeMessages(VideoGLHandler.WHAT_DRAW);
+                    videoGLHandler.sendMessageDelayed(videoGLHandler.obtainMessage(VideoGLHandler.WHAT_DRAW,
                             SystemClock.uptimeMillis() + loopingInterval), loopingInterval);
                 }
                 isPreviewing = true;
@@ -110,7 +109,7 @@ public class VideoCore implements IVideoCore {
     public void updatePreview(int visualWidth, int visualHeight) {
         synchronized (syncOp) {
             synchronized (syncPreview) {
-                videoGLHander.updatePreviewSize(visualWidth, visualHeight);
+                videoGLHandler.updatePreviewSize(visualWidth, visualHeight);
             }
         }
     }
@@ -118,7 +117,7 @@ public class VideoCore implements IVideoCore {
     @Override
     public void stopPreview(boolean releaseTexture) {
         synchronized (syncOp) {
-            videoGLHander.sendMessage(videoGLHander.obtainMessage(VideoGLHandler.WHAT_STOP_PREVIEW, releaseTexture));
+            videoGLHandler.sendMessage(videoGLHandler.obtainMessage(VideoGLHandler.WHAT_STOP_PREVIEW, releaseTexture));
             synchronized (syncIsLooping) {
                 isPreviewing = false;
             }
@@ -128,11 +127,11 @@ public class VideoCore implements IVideoCore {
     @Override
     public boolean startRecording(MediaMuxerWrapper muxer) {
         synchronized (syncOp) {
-            videoGLHander.sendMessage(videoGLHander.obtainMessage(VideoGLHandler.WHAT_START_RECORDING, muxer));
+            videoGLHandler.sendMessage(videoGLHandler.obtainMessage(VideoGLHandler.WHAT_START_RECORDING, muxer));
             synchronized (syncIsLooping) {
                 if (!isPreviewing && !isStreaming) {
-                    videoGLHander.removeMessages(VideoGLHandler.WHAT_DRAW);
-                    videoGLHander.sendMessageDelayed(videoGLHander.obtainMessage(VideoGLHandler.WHAT_DRAW, SystemClock.uptimeMillis() + loopingInterval), loopingInterval);
+                    videoGLHandler.removeMessages(VideoGLHandler.WHAT_DRAW);
+                    videoGLHandler.sendMessageDelayed(videoGLHandler.obtainMessage(VideoGLHandler.WHAT_DRAW, SystemClock.uptimeMillis() + loopingInterval), loopingInterval);
                 }
                 isStreaming = true;
             }
@@ -143,8 +142,8 @@ public class VideoCore implements IVideoCore {
     @Override
     public void updateCamTexture(SurfaceTexture camTex) {
         synchronized (syncOp) {
-            if (videoGLHander != null) {
-                videoGLHander.updateCameraTexture(camTex);
+            if (videoGLHandler != null) {
+                videoGLHandler.updateCameraTexture(camTex);
             }
         }
     }
@@ -152,7 +151,7 @@ public class VideoCore implements IVideoCore {
     @Override
     public boolean stopRecording() {
         synchronized (syncOp) {
-            videoGLHander.sendEmptyMessage(VideoGLHandler.WHAT_STOP_RECORDING);
+            videoGLHandler.sendEmptyMessage(VideoGLHandler.WHAT_STOP_RECORDING);
             synchronized (syncIsLooping) {
                 isStreaming = false;
             }
@@ -163,7 +162,7 @@ public class VideoCore implements IVideoCore {
     @Override
     public boolean destroy() {
         synchronized (syncOp) {
-            videoGLHander.sendEmptyMessage(VideoGLHandler.WHAT_UNINIT);
+            videoGLHandler.sendEmptyMessage(VideoGLHandler.WHAT_UNINIT);
             if (videoGLHandlerThread != null) {
                 videoGLHandlerThread.quitSafely();
                 try {
@@ -172,7 +171,7 @@ public class VideoCore implements IVideoCore {
                 }
             }
             videoGLHandlerThread = null;
-            videoGLHander = null;
+            videoGLHandler = null;
             return true;
         }
     }
@@ -180,8 +179,8 @@ public class VideoCore implements IVideoCore {
     @Override
     public void setCurrentCamera(int cameraIndex) {
         synchronized (syncOp) {
-            if (videoGLHander != null) {
-                videoGLHander.updateCameraIndex(cameraIndex);
+            if (videoGLHandler != null) {
+                videoGLHandler.updateCameraIndex(cameraIndex);
             }
         }
     }
@@ -306,12 +305,12 @@ public class VideoCore implements IVideoCore {
                     synchronized (syncIsLooping) {
                         if (isPreviewing || isStreaming) {
                             if (interval > 0) {
-                                videoGLHander.sendMessageDelayed(videoGLHander.obtainMessage(
+                                videoGLHandler.sendMessageDelayed(videoGLHandler.obtainMessage(
                                         VideoGLHandler.WHAT_DRAW,
                                         SystemClock.uptimeMillis() + interval),
                                         interval);
                             } else {
-                                videoGLHander.sendMessage(videoGLHander.obtainMessage(
+                                videoGLHandler.sendMessage(videoGLHandler.obtainMessage(
                                         VideoGLHandler.WHAT_DRAW,
                                         SystemClock.uptimeMillis() + loopingInterval));
                             }
@@ -413,7 +412,7 @@ public class VideoCore implements IVideoCore {
                     }
                     synchronized (syncVideoChangeListener) {
                         if (mVideoChangeListener != null) {
-                            CallbackDelivery.i().post(new VideoChangeRunable(mVideoChangeListener,
+                            CallbackDelivery.getInstance().post(new VideoChangeRunable(mVideoChangeListener,
                                     mediaMakerConfig.videoWidth,
                                     mediaMakerConfig.videoHeight));
                         }

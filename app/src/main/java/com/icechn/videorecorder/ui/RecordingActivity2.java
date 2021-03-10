@@ -247,7 +247,7 @@ public class RecordingActivity2 extends AppCompatActivity implements
             return ;
         }
         mFileIdx++;
-        mRecorderClient.updatePath(getTmpFolderPath() + "/"+mFileIdx+".mp4");
+        mRecorderClient.updateVideoSavePath(getTmpFolderPath() + "/"+mFileIdx+".mp4");
         mRecorderClient.startRecording();
         isRecording = true;
         mStartTime = System.currentTimeMillis();
@@ -261,7 +261,7 @@ public class RecordingActivity2 extends AppCompatActivity implements
         isRecording = false;
         stopTimeTask();
 
-        String path = mRecorderClient.getFilePath();
+        String path = mRecorderClient.getVideoSavePath();
         if (mCurrentDuration > 1000) {
             if (!TextUtils.isEmpty(path)) {
                 totalTime += mCurrentDuration;

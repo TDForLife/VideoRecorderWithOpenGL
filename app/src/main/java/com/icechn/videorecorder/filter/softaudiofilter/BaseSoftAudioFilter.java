@@ -15,13 +15,13 @@ public class BaseSoftAudioFilter {
 
     /**
      *
-     * @param orignBuff
+     * @param originBuff
      * @param targetBuff
      * @param presentationTimeMs
      * @param sequenceNum
-     * @return false to use orignBuff,true to use targetBuff
+     * @return false to use originBuff, true to use targetBuff
      */
-    public boolean onFrame(byte[] orignBuff, byte[] targetBuff, long presentationTimeMs, int sequenceNum) {
+    public boolean onFrame(byte[] originBuff, byte[] targetBuff, long presentationTimeMs, int sequenceNum) {
         return false;
     }
 
