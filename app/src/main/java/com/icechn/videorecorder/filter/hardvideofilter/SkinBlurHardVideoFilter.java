@@ -24,8 +24,7 @@ public class SkinBlurHardVideoFilter extends OriginalHardVideoFilter {
     }
 
     @Override
-    public void onInit(int VWidth, int VHeight) {
-        super.onInit(VWidth, VHeight);
+    public void onChildrenInit(int VWidth, int VHeight) {
         yStepLoc = GLES20.glGetUniformLocation(glProgram, "yStep");
         xStepLoc = GLES20.glGetUniformLocation(glProgram, "xStep");
     }

@@ -31,8 +31,7 @@ public class GaussianBlurHardFilter extends BaseHardVideoFilter {
     }
 
     @Override
-    public void onInit(int videoWidth, int videoHeight) {
-        super.onInit(videoWidth, videoHeight);
+    public void onChildrenInit(int videoWidth, int videoHeight) {
         String fragShader = "#define GAUSSIAN_BLUR_RADIUS "+blurRadius+".\n"+fragmentshader_filter;
         glProgram = GLESTools.createProgram(vertexShader_filter, fragShader);
         GLES20.glUseProgram(glProgram);

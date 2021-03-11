@@ -36,8 +36,7 @@ public class SplitMirrorHardVideoFilter extends BaseHardVideoFilter {
     }
 
     @Override
-    public void onInit(int videoWidth, int videoHeight) {
-        super.onInit(videoWidth, videoHeight);
+    public void onChildrenInit(int videoWidth, int videoHeight) {
         glProgram = GLESTools.createProgram(vertexShader_filter, fragmentshader_filter);
         GLES20.glUseProgram(glProgram);
         glTextureLoc = GLES20.glGetUniformLocation(glProgram, "uCamTexture");

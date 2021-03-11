@@ -43,8 +43,7 @@ public class OriginalHardVideoFilter extends BaseHardVideoFilter {
     }
 
     @Override
-    public void onInit(int VWidth, int VHeight) {
-        super.onInit(VWidth, VHeight);
+    public void onChildrenInit(int VWidth, int VHeight) {
         glProgram = GLESTools.createProgram(vertexShader_filter, fragmentshader_filter);
         GLES20.glUseProgram(glProgram);
         glTextureLoc = GLES20.glGetUniformLocation(glProgram, "uCamTexture");

@@ -154,14 +154,25 @@ public class RecordingActivity extends AppCompatActivity implements TextureView.
 
     protected void onSetFilters() {
         ArrayList<ImageDrawData> imageDrawDataList = new ArrayList<>();
+
         ImageDrawData data = new ImageDrawData();
         data.resId = R.drawable.t;
         int left = DensityUtil.dip2px(this, 30);
-        int right = left + DensityUtil.dip2px(this, 69 * 2);
         int top = DensityUtil.dip2px(this, 30);
+        int right = left + DensityUtil.dip2px(this, 69 * 2);
         int bottom = top + DensityUtil.dip2px(this, 25 * 2);
         data.rect = new Rect(left, top, right, bottom);
         imageDrawDataList.add(data);
+
+        ImageDrawData data2 = new ImageDrawData();
+        data2.resId = R.drawable.t;
+        left = DensityUtil.dip2px(this, 80);
+        top = DensityUtil.dip2px(this, 80);
+        right = left + DensityUtil.dip2px(this, 69 * 2);
+        bottom = top + DensityUtil.dip2px(this, 25 * 2);
+        data2.rect = new Rect(left, top, right, bottom);
+        imageDrawDataList.add(data2);
+
         mRecorderClient.setHardVideoFilter(new DrawMultiImageFilter(this, imageDrawDataList));
     }
 
@@ -209,7 +220,7 @@ public class RecordingActivity extends AppCompatActivity implements TextureView.
                     startRecordButton.setText("start");
                     mRecorderClient.stopRecording();
                     Log.d(TAG, "Save video path - " + mSaveVideoPath);
-                    Toast.makeText(RecordingActivity.this, "视频文件已保存至"+ mSaveVideoPath, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(RecordingActivity.this, "视频文件已保存至" + mSaveVideoPath, Toast.LENGTH_SHORT).show();
                 }
                 started = !started;
                 break;

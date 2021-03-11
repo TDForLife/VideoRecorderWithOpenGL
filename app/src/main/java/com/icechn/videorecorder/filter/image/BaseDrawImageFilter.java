@@ -23,8 +23,7 @@ public class BaseDrawImageFilter extends BaseHardVideoFilter {
     }
 
     @Override
-    public void onInit(int videoWidth, int videoHeight) {
-        super.onInit(videoWidth, videoHeight);
+    public void onChildrenInit(int videoWidth, int videoHeight) {
         glDefaultProgram = GLESTools.createProgram(
                 ImageDrawConstants.Default_vertexShader_filter,
                 ImageDrawConstants.Default_fragmentshader_filter);

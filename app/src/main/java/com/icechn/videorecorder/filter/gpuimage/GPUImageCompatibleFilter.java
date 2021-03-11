@@ -30,8 +30,7 @@ public class GPUImageCompatibleFilter<T extends GPUImageFilter> extends BaseHard
     }
 
     @Override
-    public void onInit(int VWidth, int VHeight) {
-        super.onInit(VWidth, VHeight);
+    public void onChildrenInit(int VWidth, int VHeight) {
         innerGPUImageFilter.init();
         innerGPUImageFilter.onOutputSizeChanged(VWidth, VHeight);
     }

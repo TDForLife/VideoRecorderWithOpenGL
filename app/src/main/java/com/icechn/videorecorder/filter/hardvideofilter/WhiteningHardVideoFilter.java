@@ -55,8 +55,7 @@ public class WhiteningHardVideoFilter extends BaseHardVideoFilter {
 
 
     @Override
-    public void onInit(int VWidth, int VHeight) {
-        super.onInit(VWidth, VHeight);
+    public void onChildrenInit(int VWidth, int VHeight) {
         int texture[] = new int[1];
         GLES20.glGenTextures(1, texture, 0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture[0]);

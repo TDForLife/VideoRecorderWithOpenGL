@@ -40,8 +40,7 @@ public class DrawMultiImageFilter extends BaseHardVideoFilter {
     }
 
     @Override
-    public void onInit(int videoWidth, int videoHeight) {
-        super.onInit(videoWidth, videoHeight);
+    public void onChildrenInit(int videoWidth, int videoHeight) {
         String vertexShaderCode = GLESTools.getResourceContent(mContext.getResources(), "drawimage_vertex.sh");
         String fragmentShaderCode = GLESTools.getResourceContent(mContext.getResources(), "drawimage_fragment.sh");
         glProgram = GLESTools.createProgram(vertexShaderCode, fragmentShaderCode);

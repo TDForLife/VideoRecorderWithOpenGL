@@ -26,8 +26,7 @@ public class HardVideoGroupFilter extends BaseHardVideoFilter {
     }
 
     @Override
-    public void onInit(int VWidth, int VHeight) {
-        super.onInit(VWidth, VHeight);
+    public void onChildrenInit(int VWidth, int VHeight) {
         for (FilterWrapper wrapper : filterWrappers) {
             wrapper.filter.onInit(VWidth, VHeight);
             int[] frameBuffer = new int[1];

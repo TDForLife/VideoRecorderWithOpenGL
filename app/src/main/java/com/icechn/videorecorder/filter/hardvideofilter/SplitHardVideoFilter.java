@@ -44,8 +44,7 @@ public class SplitHardVideoFilter extends BaseHardVideoFilter {
     }
 
     @Override
-    public void onInit(int videoWidth, int videoHeight) {
-        super.onInit(videoWidth, videoHeight);
+    public void onChildrenInit(int videoWidth, int videoHeight) {
         String fragShader = "#define SPLIT_SQUARE_BASE "+mSplitSquareBase+".\n"+fragmentshader_filter;
         glProgram = GLESTools.createProgram(vertexShader_filter, fragShader);
 //        glProgram = GLESTools.createProgram(vertexShader_filter, fragmentshader_filter);
