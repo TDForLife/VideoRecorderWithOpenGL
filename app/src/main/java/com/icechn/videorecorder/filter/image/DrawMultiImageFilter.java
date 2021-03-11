@@ -118,7 +118,7 @@ public class DrawMultiImageFilter extends BaseHardVideoFilter {
         GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, imageTextureId);
         GLES20.glUniform1i(glImageTextureLoc, 1);
-        GLES20.glDrawElements(GLES20.GL_TRIANGLES, drawIndecesBuffer.limit(), GLES20.GL_UNSIGNED_SHORT, drawIndecesBuffer);
+        GLES20.glDrawElements(GLES20.GL_TRIANGLES, drawIndexesBuffer.limit(), GLES20.GL_UNSIGNED_SHORT, drawIndexesBuffer);
         GLES20.glDisableVertexAttribArray(glCamPositionLoc);
         GLES20.glDisableVertexAttribArray(glCamTextureCoordLoc);
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0);

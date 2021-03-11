@@ -13,12 +13,12 @@ public class BaseHardVideoFilter {
     protected int outVideoWidth;
     protected int outVideoHeight;
     protected int directionFlag=-1;
-    protected ShortBuffer drawIndecesBuffer;
+    protected ShortBuffer drawIndexesBuffer;
 
     public void onInit(int videoWidth, int videoHeight) {
         outVideoWidth = videoWidth;
         outVideoHeight = videoHeight;
-        drawIndecesBuffer = GLHelper.getDrawIndexesBuffer();
+        drawIndexesBuffer = GLHelper.getDrawIndexesBuffer();
     }
 
     public void onDraw(final int cameraTexture, final int targetFrameBuffer, final FloatBuffer shapeBuffer, final FloatBuffer textureBuffer) {

@@ -66,7 +66,7 @@ public class GaussianBlurHardFilter extends BaseHardVideoFilter {
         GLES20.glUniform2f(glStepLoc,0f,1f/ outVideoHeight);
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-        GLES20.glDrawElements(GLES20.GL_TRIANGLES, drawIndecesBuffer.limit(), GLES20.GL_UNSIGNED_SHORT, drawIndecesBuffer);
+        GLES20.glDrawElements(GLES20.GL_TRIANGLES, drawIndexesBuffer.limit(), GLES20.GL_UNSIGNED_SHORT, drawIndexesBuffer);
         GLES20.glFinish();
 
         GLES20.glDisableVertexAttribArray(glCamPostionLoc);
