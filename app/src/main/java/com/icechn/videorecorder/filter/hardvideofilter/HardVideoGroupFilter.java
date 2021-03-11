@@ -12,6 +12,7 @@ import java.util.List;
  * Created by lake on 07/06/16.
  */
 public class HardVideoGroupFilter extends BaseHardVideoFilter {
+
     private LinkedList<FilterWrapper> filterWrappers;
 
     public HardVideoGroupFilter(List<BaseHardVideoFilter> filters) {
@@ -27,24 +28,19 @@ public class HardVideoGroupFilter extends BaseHardVideoFilter {
     @Override
     public void onInit(int VWidth, int VHeight) {
         super.onInit(VWidth, VHeight);
-        int i = 0;
         for (FilterWrapper wrapper : filterWrappers) {
             wrapper.filter.onInit(VWidth, VHeight);
             int[] frameBuffer = new int[1];
             int[] frameBufferTexture = new int[1];
-            GLESTools.createFrameBuff(frameBuffer,
-                    frameBufferTexture,
-                    outVideoWidth,
-                    outVideoHeight);
+            GLESTools.createFrameBuffer(frameBuffer, frameBufferTexture, outVideoWidth, outVideoHeight);
             wrapper.frameBuffer = frameBuffer[0];
             wrapper.frameBufferTexture = frameBufferTexture[0];
-            i++;
         }
     }
 
 
     @Override
-    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeBuffer, FloatBuffer textureBuffer) {
+    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeVerticesBuffer, FloatBuffer textureVerticesBuffer) {
         FilterWrapper preFilterWrapper = null;
         int i = 0;
         int texture;
@@ -55,9 +51,9 @@ public class HardVideoGroupFilter extends BaseHardVideoFilter {
                 texture = preFilterWrapper.frameBufferTexture;
             }
             if (i == (filterWrappers.size() - 1)) {
-                wrapper.filter.onDraw(texture, targetFrameBuffer, shapeBuffer, textureBuffer);
+                wrapper.filter.onDraw(texture, targetFrameBuffer, shapeVerticesBuffer, textureVerticesBuffer);
             } else {
-                wrapper.filter.onDraw(texture, wrapper.frameBuffer, shapeBuffer, textureBuffer);
+                wrapper.filter.onDraw(texture, wrapper.frameBuffer, shapeVerticesBuffer, textureVerticesBuffer);
             }
             preFilterWrapper = wrapper;
             i++;
@@ -82,7 +78,8 @@ public class HardVideoGroupFilter extends BaseHardVideoFilter {
         }
     }
 
-    private class FilterWrapper {
+    private static class FilterWrapper {
+
         BaseHardVideoFilter filter;
         int frameBuffer;
         int frameBufferTexture;

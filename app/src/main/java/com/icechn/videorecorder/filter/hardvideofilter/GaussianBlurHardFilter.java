@@ -26,8 +26,8 @@ public class GaussianBlurHardFilter extends BaseHardVideoFilter {
 
     public GaussianBlurHardFilter(Context context, int blurRadius) {
         this.blurRadius = blurRadius;
-        this.vertexShader_filter = GLESTools.uRes(context.getResources(), "gaussian_vertex.sh");
-        this.fragmentshader_filter = GLESTools.uRes(context.getResources(), "gaussian_fragment.sh");
+        this.vertexShader_filter = GLESTools.getResourceContent(context.getResources(), "gaussian_vertex.sh");
+        this.fragmentshader_filter = GLESTools.getResourceContent(context.getResources(), "gaussian_fragment.sh");
     }
 
     @Override
@@ -44,7 +44,7 @@ public class GaussianBlurHardFilter extends BaseHardVideoFilter {
     }
 
     @Override
-    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeBuffer, FloatBuffer textureBuffer) {
+    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeVerticesBuffer, FloatBuffer textureVerticesBuffer) {
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, targetFrameBuffer);
         GLES20.glUseProgram(glProgram);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
@@ -53,14 +53,14 @@ public class GaussianBlurHardFilter extends BaseHardVideoFilter {
         GLES20.glUniform2f(glStepLoc,1f/ outVideoWidth,0f);
         GLES20.glEnableVertexAttribArray(glCamPostionLoc);
         GLES20.glEnableVertexAttribArray(glCamTextureCoordLoc);
-        shapeBuffer.position(0);
+        shapeVerticesBuffer.position(0);
         GLES20.glVertexAttribPointer(glCamPostionLoc, 2,
                 GLES20.GL_FLOAT, false,
-                2 * 4, shapeBuffer);
-        textureBuffer.position(0);
+                2 * 4, shapeVerticesBuffer);
+        textureVerticesBuffer.position(0);
         GLES20.glVertexAttribPointer(glCamTextureCoordLoc, 2,
                 GLES20.GL_FLOAT, false,
-                2 * 4, textureBuffer);
+                2 * 4, textureVerticesBuffer);
         GLES20.glViewport(0, 0, outVideoWidth, outVideoHeight);
         GLES20.glUniform1i(glTextureLoc, 0);
         GLES20.glUniform2f(glStepLoc,0f,1f/ outVideoHeight);

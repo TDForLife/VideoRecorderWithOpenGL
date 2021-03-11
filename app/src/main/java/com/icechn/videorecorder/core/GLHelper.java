@@ -104,7 +104,7 @@ public class GLHelper {
             1.0f, 0.0f,
             1.0f, 1.0f
     };
-    private static final float[] Cam2dTextureVertices = {
+    private static final float[] Camera2dTextureVertices = {
             0.0f, 1.0f,
             0.0f, 0.0f,
             1.0f, 0.0f,
@@ -321,17 +321,17 @@ public class GLHelper {
         }
     }
 
-    public static void createCameraFrameBuffer(int[] frameBuffer, int[] frameBufferTex, int width, int height) {
+    public static void createCameraFrameBuffer(int[] frameBuffer, int[] frameBufferTexture, int width, int height) {
         GLES20.glGenFramebuffers(1, frameBuffer, 0);
-        GLES20.glGenTextures(1, frameBufferTex, 0);
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, frameBufferTex[0]);
+        GLES20.glGenTextures(1, frameBufferTexture, 0);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, frameBufferTexture[0]);
         GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, width, height, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null);
         GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
         GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
         GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
         GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, frameBuffer[0]);
-        GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, frameBufferTex[0], 0);
+        GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, frameBufferTexture[0], 0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
         GLESTools.checkGlError("createCameraFrameBuffer");
@@ -407,7 +407,7 @@ public class GLHelper {
 
     public static FloatBuffer getCamera2DTextureVerticesBuffer(final int directionFlag, final float cropRatio) {
         if (directionFlag == -1) {
-            FloatBuffer result = ByteBuffer.allocateDirect(FLOAT_SIZE_BYTES * Cam2dTextureVertices.length).
+            FloatBuffer result = ByteBuffer.allocateDirect(FLOAT_SIZE_BYTES * Camera2dTextureVertices.length).
                     order(ByteOrder.nativeOrder()).
                     asFloatBuffer();
             result.put(CamTextureVertices);
@@ -426,7 +426,7 @@ public class GLHelper {
                 buffer = Cam2dTextureVertices_270.clone();
                 break;
             default:
-                buffer = Cam2dTextureVertices.clone();
+                buffer = Camera2dTextureVertices.clone();
         }
 
         if ((directionFlag & 0xF0) == MediaMakerConfig.FLAG_DIRECTION_ROATATION_0
@@ -478,7 +478,7 @@ public class GLHelper {
     }
 
     public static FloatBuffer getCameraTextureVerticesBuffer() {
-        FloatBuffer result = ByteBuffer.allocateDirect(FLOAT_SIZE_BYTES * Cam2dTextureVertices.length).
+        FloatBuffer result = ByteBuffer.allocateDirect(FLOAT_SIZE_BYTES * Camera2dTextureVertices.length).
                 order(ByteOrder.nativeOrder()).
                 asFloatBuffer();
         result.put(CamTextureVertices);

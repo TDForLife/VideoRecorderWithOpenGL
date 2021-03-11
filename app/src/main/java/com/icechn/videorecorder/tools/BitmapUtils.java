@@ -18,6 +18,9 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public class BitmapUtils {
+
+    private static final String TAG = "bitmap";
+
     public static Bitmap loadBitmapFromAssets(Context context, String filePath) {
         InputStream inputStream = null;
         try {
@@ -28,9 +31,9 @@ public class BitmapUtils {
         if (inputStream == null) return null;
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inScaled = false;
-        Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-        return bitmap;
+        return BitmapFactory.decodeStream(inputStream);
     }
+
     public static Bitmap loadBitmapFromDisk(Context context, String filePath) {
         InputStream inputStream = null;
         try {
@@ -41,49 +44,46 @@ public class BitmapUtils {
         if (inputStream == null) return null;
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inScaled = false;
-        Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-        return bitmap;
+        return BitmapFactory.decodeStream(inputStream);
     }
 
     public static Bitmap loadBitmapFromRaw(Context context, int resourceId) {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inScaled = false;
-        Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), resourceId, options);
-        return bitmap;
+        return BitmapFactory.decodeResource(context.getResources(), resourceId, options);
     }
 
     public static void saveBitmap(byte[] buffer, int width, int height) {
         try {
             // 调用image.compressToJpeg（）将YUV格式图像数据data转为jpg格式
-            YuvImage image = new YuvImage(buffer, ImageFormat.NV21, width,
-                    height, null);
-            if (image != null) {
-                ByteArrayOutputStream outstream = new ByteArrayOutputStream();
-                image.compressToJpeg(new Rect(0, 0, width, height), 80, outstream);
+            YuvImage image = new YuvImage(buffer, ImageFormat.NV21, width, height, null);
+            ByteArrayOutputStream outstream = new ByteArrayOutputStream();
+            image.compressToJpeg(new Rect(0, 0, width, height), 80, outstream);
 
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                image.compressToJpeg(new Rect(0,0,width,height),80,stream);
-                Bitmap bmp = BitmapFactory.decodeByteArray(stream.toByteArray(),0,stream.size());
+            ByteArrayOutputStream stream = new ByteArrayOutputStream();
+            image.compressToJpeg(new Rect(0, 0, width, height), 80, stream);
+            Bitmap bmp = BitmapFactory.decodeByteArray(stream.toByteArray(), 0, stream.size());
 
-                saveBitmap(bmp);
+            saveBitmap(bmp);
 
-                outstream.flush();
-            }
+            outstream.flush();
         } catch (Exception ex) {
-            Log.e("Sys", "Error:" + ex.getMessage());
+            Log.e(TAG, "saveBitmap Error : " + ex.getMessage());
         }
     }
 
-    //图片保存
-    private static void saveBitmap(Bitmap b){
-        String path = Environment.getExternalStorageDirectory()+ "/Omoshiroi/photo/";
-        File folder=new File(path);
-        if(!folder.exists()&&!folder.mkdirs()){
+    /**
+     * 图片保存
+     */
+    private static void saveBitmap(Bitmap b) {
+        String path = Environment.getExternalStorageDirectory() + "/Omoshiroi/photo/";
+        File folder = new File(path);
+        if (!folder.exists() && !folder.mkdirs()) {
             Log.i("SaveBitmap", "save pic fail");
             return;
         }
         long dataTake = System.currentTimeMillis();
-        final String jpegName=path+ dataTake +".jpg";
+        final String jpegName = path + dataTake + ".jpg";
         try {
             FileOutputStream fout = new FileOutputStream(jpegName);
             BufferedOutputStream bos = new BufferedOutputStream(fout);
@@ -93,7 +93,6 @@ public class BitmapUtils {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        Log.i("SaveBitmap", "save pic success:"+jpegName);
-
+        Log.i("SaveBitmap", "save pic success:" + jpegName);
     }
 }

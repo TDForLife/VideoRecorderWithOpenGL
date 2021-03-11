@@ -19,7 +19,7 @@ public class SkinBlurHardVideoFilter extends OriginalHardVideoFilter {
      * @param stepScale suggest:480P = 2,720P = 3
      */
     public SkinBlurHardVideoFilter(Context context, int stepScale) {
-        super(null, GLESTools.uRes(context.getResources(), "skinblur_fragment.sh"));
+        super(null, GLESTools.getResourceContent(context.getResources(), "skinblur_fragment.sh"));
         this.stepScale = (float) stepScale;
     }
 

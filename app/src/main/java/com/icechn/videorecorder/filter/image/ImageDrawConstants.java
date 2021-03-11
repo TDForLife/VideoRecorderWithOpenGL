@@ -5,6 +5,7 @@ package com.icechn.videorecorder.filter.image;
  */
 
 public class ImageDrawConstants {
+
     public static final String Default_vertexShader_filter = "" +
             "attribute vec4 aCamPosition;\n" +
             "attribute vec2 aCamTextureCoord;\n" +

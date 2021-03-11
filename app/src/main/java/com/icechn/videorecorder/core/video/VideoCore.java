@@ -85,7 +85,7 @@ public class VideoCore implements IVideoCore {
             mMediaMakerConfig.mediaCodecAVCIFrameInterval = resConfig.getVideoGOP();
             mMediaMakerConfig.mediaCodecAVCFrameRate = mMediaMakerConfig.videoFPS;
             loopingInterval = 1000 / mMediaMakerConfig.videoFPS;
-            // TODO "video/avc" 应该由业务方来设置？
+            // TODO "video/avc" 应该由业务方来设置
             dstVideoFormat = MediaFormat.createVideoFormat("video/avc", mMediaMakerConfig.previewVideoHeight, mMediaMakerConfig.previewVideoWidth);
             videoGLHandlerThread = new HandlerThread("GLThread");
             videoGLHandlerThread.start();
@@ -137,7 +137,8 @@ public class VideoCore implements IVideoCore {
             synchronized (syncIsLooping) {
                 if (!isPreviewing && !isStreaming) {
                     videoGLHandler.removeMessages(VideoGLHandler.WHAT_DRAW);
-                    videoGLHandler.sendMessageDelayed(videoGLHandler.obtainMessage(VideoGLHandler.WHAT_DRAW, SystemClock.uptimeMillis() + loopingInterval), loopingInterval);
+                    videoGLHandler.sendMessageDelayed(videoGLHandler.obtainMessage(VideoGLHandler.WHAT_DRAW,
+                            SystemClock.uptimeMillis() + loopingInterval), loopingInterval);
                 }
                 isStreaming = true;
             }

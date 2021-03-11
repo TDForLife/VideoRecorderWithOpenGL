@@ -32,7 +32,7 @@ public class SplitMirrorHardVideoFilter extends BaseHardVideoFilter {
 
     public SplitMirrorHardVideoFilter(Context context) {
         super();
-        this.fragmentshader_filter = GLESTools.uRes(context.getResources(), "split_mirror_fragment.sh");
+        this.fragmentshader_filter = GLESTools.getResourceContent(context.getResources(), "split_mirror_fragment.sh");
     }
 
     @Override
@@ -46,7 +46,7 @@ public class SplitMirrorHardVideoFilter extends BaseHardVideoFilter {
     }
 
     @Override
-    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeBuffer, FloatBuffer textureBuffer) {
+    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeVerticesBuffer, FloatBuffer textureVerticesBuffer) {
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, targetFrameBuffer);
         GLES20.glUseProgram(glProgram);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
@@ -54,14 +54,14 @@ public class SplitMirrorHardVideoFilter extends BaseHardVideoFilter {
         GLES20.glUniform1i(glTextureLoc, 0);
         GLES20.glEnableVertexAttribArray(glCamPostionLoc);
         GLES20.glEnableVertexAttribArray(glCamTextureCoordLoc);
-        shapeBuffer.position(0);
+        shapeVerticesBuffer.position(0);
         GLES20.glVertexAttribPointer(glCamPostionLoc, 2,
                 GLES20.GL_FLOAT, false,
-                2 * 4, shapeBuffer);
-        textureBuffer.position(0);
+                2 * 4, shapeVerticesBuffer);
+        textureVerticesBuffer.position(0);
         GLES20.glVertexAttribPointer(glCamTextureCoordLoc, 2,
                 GLES20.GL_FLOAT, false,
-                2 * 4, textureBuffer);
+                2 * 4, textureVerticesBuffer);
         GLES20.glViewport(0, 0, outVideoWidth, outVideoHeight);
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);

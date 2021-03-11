@@ -11,6 +11,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 
 public class GLESTools {
+
+    public static final int NO_TEXTURE = -1;
+
     public static int FLOAT_SIZE_BYTES = 4;
     public static int SHORT_SIZE_BYTES = 2;
 
@@ -71,27 +74,21 @@ public class GLESTools {
     public static void checkGlError(String op) {
         int error = GLES20.glGetError();
         if (error != GLES20.GL_NO_ERROR) {
-            String msg = op + ": glError 0x" + Integer.toHexString(error);
-            Log.d("",msg);
+            String msg = op + " : glError 0x" + Integer.toHexString(error);
+            Log.d("", msg);
             throw new RuntimeException(msg);
         }
     }
-
-    public static final int NO_TEXTURE = -1;
 
     public static int loadTexture(final Bitmap image, final int reUseTexture) {
         int[] texture = new int[1];
         if (reUseTexture == NO_TEXTURE) {
             GLES20.glGenTextures(1, texture, 0);
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture[0]);
-            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                    GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                    GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                    GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                    GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
+            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
             GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, image, 0);
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
         } else {
@@ -102,29 +99,28 @@ public class GLESTools {
         return texture[0];
     }
 
-    public static void createFrameBuff(int[] frameBuffer, int[] frameBufferTex, int width, int height) {
+    public static void createFrameBuffer(int[] frameBuffer, int[] frameBufferTexture, int width, int height) {
         GLES20.glGenFramebuffers(1, frameBuffer, 0);
-        GLES20.glGenTextures(1, frameBufferTex, 0);
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, frameBufferTex[0]);
-        GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, width, height, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null);
-        GLESTools.checkGlError("createCamFrameBuff");
-        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glGenTextures(1, frameBufferTexture, 0);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, frameBufferTexture[0]);
+        GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, width, height,
+                0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null);
+        GLESTools.checkGlError("createFrameBuffer");
+        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
+        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, frameBuffer[0]);
-        GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, frameBufferTex[0], 0);
+        GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, frameBufferTexture[0], 0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
-        GLESTools.checkGlError("createCamFrameBuff");
+        GLESTools.checkGlError("createFrameBuffer");
     }
 
-    //通过路径加载Assets中的文本内容
-    public static String uRes(Resources mRes, String path) {
+    /**
+     * 通过路径加载 Assets 中的文本内容
+     */
+    public static String getResourceContent(Resources mRes, String path) {
         StringBuilder result = new StringBuilder();
         try {
             InputStream is = mRes.getAssets().open(path);

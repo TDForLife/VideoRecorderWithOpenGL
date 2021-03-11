@@ -27,30 +27,32 @@ public class DrawMultiImageFilter extends BaseHardVideoFilter {
     protected int glImageAngelLoc;
 
     protected Context mContext;
-    private ArrayList<ImageDrawData> mImageInfos = new ArrayList<>();
-    private ArrayList<ImageTexture> imageTextures = new ArrayList<>();
-    private int mSize;
+    private final ArrayList<ImageDrawData> mImageDrawInfoList = new ArrayList<>();
+    private final ArrayList<ImageTexture> mImageTextureList = new ArrayList<>();
 
-    public DrawMultiImageFilter(Context context, ArrayList<ImageDrawData> imageInfos) {
+    public DrawMultiImageFilter(Context context, ArrayList<ImageDrawData> imageInfoList) {
         super();
         mContext = context;
-        if (imageInfos == null || imageInfos.size() == 0) {
-            throw new RuntimeException("imageInfos must be not empty");
+        if (imageInfoList == null || imageInfoList.size() == 0) {
+            throw new RuntimeException("DrawMultiImageFilter's imageInfoList must not be empty");
         }
-        this.mImageInfos.addAll(imageInfos);
-        mSize = mImageInfos.size();
+        this.mImageDrawInfoList.addAll(imageInfoList);
     }
 
     @Override
     public void onInit(int videoWidth, int videoHeight) {
         super.onInit(videoWidth, videoHeight);
-        glProgram = GLESTools.createProgram(GLESTools.uRes(mContext.getResources(), "drawimage_vertex.sh"),
-                GLESTools.uRes(mContext.getResources(), "drawimage_fragment.sh"));
+        String vertexShaderCode = GLESTools.getResourceContent(mContext.getResources(), "drawimage_vertex.sh");
+        String fragmentShaderCode = GLESTools.getResourceContent(mContext.getResources(), "drawimage_fragment.sh");
+        glProgram = GLESTools.createProgram(vertexShaderCode, fragmentShaderCode);
         GLES20.glUseProgram(glProgram);
-        glCamTextureLoc = GLES20.glGetUniformLocation(glProgram, "uCamTexture");
-        glImageTextureLoc = GLES20.glGetUniformLocation(glProgram, "uImageTexture");
+
         glCamPositionLoc = GLES20.glGetAttribLocation(glProgram, "aCamPosition");
         glCamTextureCoordLoc = GLES20.glGetAttribLocation(glProgram, "aCamTextureCoord");
+
+        glCamTextureLoc = GLES20.glGetUniformLocation(glProgram, "uCamTexture");
+        glImageTextureLoc = GLES20.glGetUniformLocation(glProgram, "uImageTexture");
+
         glImageRectLoc = GLES20.glGetUniformLocation(glProgram, "imageRect");
         glImageAngelLoc = GLES20.glGetUniformLocation(glProgram, "imageAngel");
 
@@ -58,60 +60,71 @@ public class DrawMultiImageFilter extends BaseHardVideoFilter {
     }
 
     protected void initImageTexture() {
-        imageTextures = new ArrayList<>();
-        ImageTexture imageTexture;
-        for (int i = 0; i < mSize; i++) {
-            imageTexture = new ImageTexture(outVideoWidth, outVideoHeight);
-            imageTexture.load(mContext, mImageInfos.get(i).resId);
-            imageTextures.add(imageTexture);
+        mImageTextureList.clear();
+        for (int i = 0; i < mImageDrawInfoList.size(); i++) {
+            ImageTexture imageTexture = new ImageTexture(outVideoWidth, outVideoHeight);
+            imageTexture.load(mContext, mImageDrawInfoList.get(i).resId);
+            mImageTextureList.add(imageTexture);
         }
     }
 
     @Override
-    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeBuffer, FloatBuffer textureBuffer) {
+    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeVerticesBuffer, FloatBuffer textureVerticesBuffer) {
         GLES20.glViewport(0, 0, outVideoWidth, outVideoHeight);
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-        int textureId;
+
+        int backgroundTextureId;
         int frameBuffer;
-        Rect rect;
         ImageTexture preImageTexture = null;
-        for (int i = 0; i < mSize; i++) {
-            if (preImageTexture == null) {
-                textureId = cameraTexture;
-            } else {
-                textureId = preImageTexture.getTextureId();
-            }
-            if (i == mSize - 1) {
-                frameBuffer = targetFrameBuffer;
-            } else {
-                frameBuffer = imageTextures.get(i).getFrameBuffer();
-            }
-            rect = mImageInfos.get(i).rect;
+
+        int size = mImageDrawInfoList.size();
+        for (int i = 0; i < size; i++) {
+
+            ImageDrawData imageDrawInfo = mImageDrawInfoList.get(i);
+            ImageTexture imageTexture = mImageTextureList.get(i);
+
+            Rect rect = imageDrawInfo.rect;
             if (rect.left == rect.right || rect.top == rect.bottom) {
                 continue;
             }
-            drawImage(convertToRectF(rect), imageTextures.get(i).getImageTextureId(), textureId, frameBuffer, shapeBuffer, textureBuffer);
-            preImageTexture = imageTextures.get(i);
+
+            if (preImageTexture == null) {
+                backgroundTextureId = cameraTexture;
+            } else {
+                backgroundTextureId = preImageTexture.getFrameBufferTextureId();
+            }
+            if (i == size - 1) {
+                frameBuffer = targetFrameBuffer;
+            } else {
+                frameBuffer = imageTexture.getFrameBuffer();
+            }
+
+            drawImage(imageTexture.convertToRectF(rect), imageTexture.getImageTextureId(),
+                    backgroundTextureId, frameBuffer,
+                    shapeVerticesBuffer, textureVerticesBuffer);
+
+            preImageTexture = mImageTextureList.get(i);
         }
+
         GLES20.glFinish();
     }
 
-    protected void drawImage(RectF rectF, int imageTextureId, int cameraTexture, int targetFrameBuffer, FloatBuffer shapeBuffer, FloatBuffer textureBuffer) {
+    protected void drawImage(RectF rectF, int imageTextureId,
+                             int cameraTexture, int targetFrameBuffer,
+                             FloatBuffer shapeVerticesBuffer, FloatBuffer textureVerticesBuffer) {
+
         GLES20.glEnableVertexAttribArray(glCamPositionLoc);
         GLES20.glEnableVertexAttribArray(glCamTextureCoordLoc);
-        shapeBuffer.position(0);
-        GLES20.glVertexAttribPointer(glCamPositionLoc, 2,
-                GLES20.GL_FLOAT, false,
-                2 * 4, shapeBuffer);
-        textureBuffer.position(0);
-        GLES20.glVertexAttribPointer(glCamTextureCoordLoc, 2,
-                GLES20.GL_FLOAT, false,
-                2 * 4, textureBuffer);
+        shapeVerticesBuffer.position(0);
+        GLES20.glVertexAttribPointer(glCamPositionLoc, 2, GLES20.GL_FLOAT, false,2 * 4, shapeVerticesBuffer);
+        textureVerticesBuffer.position(0);
+        GLES20.glVertexAttribPointer(glCamTextureCoordLoc, 2, GLES20.GL_FLOAT, false,2 * 4, textureVerticesBuffer);
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, targetFrameBuffer);
         GLES20.glUseProgram(glProgram);
         GLES20.glUniform4f(glImageRectLoc, rectF.left, rectF.top, rectF.right, rectF.bottom);
-//        GLES20.glUniform1f(glImageAngelLoc, (float)(30.0f*Math.PI/180));//用来更新旋转角度的
+        // 用来更新旋转角度的
+        // GLES20.glUniform1f(glImageAngelLoc, (float) (30.0f * Math.PI / 180));
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, cameraTexture);
         GLES20.glUniform1i(glCamTextureLoc, 0);
@@ -134,18 +147,9 @@ public class DrawMultiImageFilter extends BaseHardVideoFilter {
     }
 
     protected void destroyImageTexture() {
-        for (ImageTexture imageTexture : imageTextures) {
+        for (ImageTexture imageTexture : mImageTextureList) {
             imageTexture.destroy();
         }
-    }
-
-    private RectF convertToRectF(Rect iconRect) {
-        RectF iconRectF = new RectF();
-        iconRectF.top = iconRect.top / (float) outVideoHeight;
-        iconRectF.bottom = iconRect.bottom / (float) outVideoHeight;
-        iconRectF.left = iconRect.left / (float) outVideoWidth;
-        iconRectF.right = iconRect.right / (float) outVideoWidth;
-        return iconRectF;
     }
 
     public static class ImageDrawData {

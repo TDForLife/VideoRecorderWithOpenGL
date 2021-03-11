@@ -13,9 +13,10 @@ import com.icechn.videorecorder.tools.GLESTools;
  */
 
 public class BaseDrawImageFilter extends BaseHardVideoFilter {
+
     protected int glDefaultProgram;
     protected int glDefaultTextureLoc;
-    protected int glDefaultCamPostionLoc;
+    protected int glDefaultCamPositionLoc;
     protected int glDefaultCamTextureCoordLoc;
 
     public BaseDrawImageFilter() {
@@ -29,28 +30,28 @@ public class BaseDrawImageFilter extends BaseHardVideoFilter {
                 ImageDrawConstants.Default_fragmentshader_filter);
         GLES20.glUseProgram(glDefaultProgram);
         glDefaultTextureLoc = GLES20.glGetUniformLocation(glDefaultProgram, "uCamTexture");
-        glDefaultCamPostionLoc = GLES20.glGetAttribLocation(glDefaultProgram, "aCamPosition");
+        glDefaultCamPositionLoc = GLES20.glGetAttribLocation(glDefaultProgram, "aCamPosition");
         glDefaultCamTextureCoordLoc = GLES20.glGetAttribLocation(glDefaultProgram, "aCamTextureCoord");
     }
 
 
     @Override
-    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeBuffer, FloatBuffer textureBuffer) {
+    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeVerticesBuffer, FloatBuffer textureVerticesBuffer) {
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, targetFrameBuffer);
         GLES20.glUseProgram(glDefaultProgram);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, cameraTexture);
         GLES20.glUniform1i(glDefaultTextureLoc, 0);
-        GLES20.glEnableVertexAttribArray(glDefaultCamPostionLoc);
+        GLES20.glEnableVertexAttribArray(glDefaultCamPositionLoc);
         GLES20.glEnableVertexAttribArray(glDefaultCamTextureCoordLoc);
-        shapeBuffer.position(0);
-        GLES20.glVertexAttribPointer(glDefaultCamPostionLoc, 2,
+        shapeVerticesBuffer.position(0);
+        GLES20.glVertexAttribPointer(glDefaultCamPositionLoc, 2,
                 GLES20.GL_FLOAT, false,
-                2 * 4, shapeBuffer);
-        textureBuffer.position(0);
+                2 * 4, shapeVerticesBuffer);
+        textureVerticesBuffer.position(0);
         GLES20.glVertexAttribPointer(glDefaultCamTextureCoordLoc, 2,
                 GLES20.GL_FLOAT, false,
-                2 * 4, textureBuffer);
+                2 * 4, textureVerticesBuffer);
         onPreDraw();
         GLES20.glViewport(0, 0, outVideoWidth, outVideoHeight);
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -58,7 +59,7 @@ public class BaseDrawImageFilter extends BaseHardVideoFilter {
         GLES20.glDrawElements(GLES20.GL_TRIANGLES, drawIndexesBuffer.limit(), GLES20.GL_UNSIGNED_SHORT, drawIndexesBuffer);
         GLES20.glFinish();
         onAfterDraw();
-        GLES20.glDisableVertexAttribArray(glDefaultCamPostionLoc);
+        GLES20.glDisableVertexAttribArray(glDefaultCamPositionLoc);
         GLES20.glDisableVertexAttribArray(glDefaultCamTextureCoordLoc);
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0);
         GLES20.glUseProgram(0);
