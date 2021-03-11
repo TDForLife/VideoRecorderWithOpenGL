@@ -86,7 +86,7 @@ public class WhiteningHardVideoFilter extends BaseHardVideoFilter {
     }
 
     @Override
-    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeBuffer, FloatBuffer textrueBuffer) {
+    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeBuffer, FloatBuffer textureBuffer) {
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, targetFrameBuffer);
         GLES20.glUseProgram(glProgram);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
@@ -101,10 +101,10 @@ public class WhiteningHardVideoFilter extends BaseHardVideoFilter {
         GLES20.glVertexAttribPointer(glCamPostionLoc, 2,
                 GLES20.GL_FLOAT, false,
                 2 * 4, shapeBuffer);
-        textrueBuffer.position(0);
+        textureBuffer.position(0);
         GLES20.glVertexAttribPointer(glCamTextureCoordLoc, 2,
                 GLES20.GL_FLOAT, false,
-                2 * 4, textrueBuffer);
+                2 * 4, textureBuffer);
         GLES20.glViewport(0, 0, outVideoWidth, outVideoHeight);
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);

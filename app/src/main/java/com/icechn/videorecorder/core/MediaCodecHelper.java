@@ -120,7 +120,7 @@ public class MediaCodecHelper {
         audioFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, config.mediaCodecAACChannelCount);
         audioFormat.setInteger(MediaFormat.KEY_BIT_RATE, config.mediaCodecAACBitRate);
         audioFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, config.mediaCodecAACMaxInputSize);
-        Log.d("", "creatingAudioEncoder,format=" + audioFormat.toString());
+        Log.d(TAG, "creatingAudioEncoder audio format = " + audioFormat.toString());
         try {
             result = MediaCodec.createEncoderByType(audioFormat.getString(MediaFormat.KEY_MIME));
         } catch (Exception e) {

@@ -24,6 +24,7 @@ import com.icechn.videorecorder.filter.softaudiofilter.SetVolumeAudioFilter;
 import com.icechn.videorecorder.model.MediaConfig;
 import com.icechn.videorecorder.model.RecordConfig;
 import com.icechn.videorecorder.model.Size;
+import com.icechn.videorecorder.tools.DensityUtil;
 
 import java.util.ArrayList;
 
@@ -100,6 +101,7 @@ public class RecordingActivity extends AppCompatActivity implements TextureView.
             recordConfig.setTargetVideoSize(new Size(480, 480));
         } else {
             // 需要加上横屏竖屏的判断为好
+            // recordConfig.setTargetVideoSize(new Size(960, 480));
             recordConfig.setTargetVideoSize(new Size(screenHeight, screenWidth));
         }
         recordConfig.setSquare(true);
@@ -151,12 +153,16 @@ public class RecordingActivity extends AppCompatActivity implements TextureView.
     }
 
     protected void onSetFilters() {
-        ArrayList<ImageDrawData> infos = new ArrayList<>();
+        ArrayList<ImageDrawData> imageDrawDataList = new ArrayList<>();
         ImageDrawData data = new ImageDrawData();
         data.resId = R.drawable.t;
-        data.rect = new Rect(100, 100, 238, 151);
-        infos.add(data);
-        mRecorderClient.setHardVideoFilter(new DrawMultiImageFilter(this, infos));
+        int left = DensityUtil.dip2px(this, 30);
+        int right = left + DensityUtil.dip2px(this, 69 * 2);
+        int top = DensityUtil.dip2px(this, 30);
+        int bottom = top + DensityUtil.dip2px(this, 25 * 2);
+        data.rect = new Rect(left, top, right, bottom);
+        imageDrawDataList.add(data);
+        mRecorderClient.setHardVideoFilter(new DrawMultiImageFilter(this, imageDrawDataList));
     }
 
     @Override

@@ -44,7 +44,7 @@ public class HardVideoGroupFilter extends BaseHardVideoFilter {
 
 
     @Override
-    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeBuffer, FloatBuffer textrueBuffer) {
+    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeBuffer, FloatBuffer textureBuffer) {
         FilterWrapper preFilterWrapper = null;
         int i = 0;
         int texture;
@@ -55,9 +55,9 @@ public class HardVideoGroupFilter extends BaseHardVideoFilter {
                 texture = preFilterWrapper.frameBufferTexture;
             }
             if (i == (filterWrappers.size() - 1)) {
-                wrapper.filter.onDraw(texture, targetFrameBuffer, shapeBuffer, textrueBuffer);
+                wrapper.filter.onDraw(texture, targetFrameBuffer, shapeBuffer, textureBuffer);
             } else {
-                wrapper.filter.onDraw(texture, wrapper.frameBuffer, shapeBuffer, textrueBuffer);
+                wrapper.filter.onDraw(texture, wrapper.frameBuffer, shapeBuffer, textureBuffer);
             }
             preFilterWrapper = wrapper;
             i++;

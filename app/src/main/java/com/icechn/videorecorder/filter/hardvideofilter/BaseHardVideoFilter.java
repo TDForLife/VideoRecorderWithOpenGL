@@ -21,7 +21,7 @@ public class BaseHardVideoFilter {
         drawIndecesBuffer = GLHelper.getDrawIndexesBuffer();
     }
 
-    public void onDraw(final int cameraTexture, final int targetFrameBuffer, final FloatBuffer shapeBuffer, final FloatBuffer textrueBuffer) {
+    public void onDraw(final int cameraTexture, final int targetFrameBuffer, final FloatBuffer shapeBuffer, final FloatBuffer textureBuffer) {
     }
 
     public void onDestroy() {

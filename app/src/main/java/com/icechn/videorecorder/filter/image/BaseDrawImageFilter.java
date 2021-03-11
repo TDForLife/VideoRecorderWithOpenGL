@@ -35,7 +35,7 @@ public class BaseDrawImageFilter extends BaseHardVideoFilter {
 
 
     @Override
-    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeBuffer, FloatBuffer textrueBuffer) {
+    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeBuffer, FloatBuffer textureBuffer) {
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, targetFrameBuffer);
         GLES20.glUseProgram(glDefaultProgram);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
@@ -47,10 +47,10 @@ public class BaseDrawImageFilter extends BaseHardVideoFilter {
         GLES20.glVertexAttribPointer(glDefaultCamPostionLoc, 2,
                 GLES20.GL_FLOAT, false,
                 2 * 4, shapeBuffer);
-        textrueBuffer.position(0);
+        textureBuffer.position(0);
         GLES20.glVertexAttribPointer(glDefaultCamTextureCoordLoc, 2,
                 GLES20.GL_FLOAT, false,
-                2 * 4, textrueBuffer);
+                2 * 4, textureBuffer);
         onPreDraw();
         GLES20.glViewport(0, 0, outVideoWidth, outVideoHeight);
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);

@@ -17,9 +17,10 @@ import java.util.ArrayList;
  */
 
 public class DrawMultiImageFilter extends BaseHardVideoFilter {
+
     protected int glProgram;
     protected int glCamTextureLoc;
-    protected int glCamPostionLoc;
+    protected int glCamPositionLoc;
     protected int glCamTextureCoordLoc;
     protected int glImageTextureLoc;
     protected int glImageRectLoc;
@@ -48,7 +49,7 @@ public class DrawMultiImageFilter extends BaseHardVideoFilter {
         GLES20.glUseProgram(glProgram);
         glCamTextureLoc = GLES20.glGetUniformLocation(glProgram, "uCamTexture");
         glImageTextureLoc = GLES20.glGetUniformLocation(glProgram, "uImageTexture");
-        glCamPostionLoc = GLES20.glGetAttribLocation(glProgram, "aCamPosition");
+        glCamPositionLoc = GLES20.glGetAttribLocation(glProgram, "aCamPosition");
         glCamTextureCoordLoc = GLES20.glGetAttribLocation(glProgram, "aCamTextureCoord");
         glImageRectLoc = GLES20.glGetUniformLocation(glProgram, "imageRect");
         glImageAngelLoc = GLES20.glGetUniformLocation(glProgram, "imageAngel");
@@ -97,10 +98,10 @@ public class DrawMultiImageFilter extends BaseHardVideoFilter {
     }
 
     protected void drawImage(RectF rectF, int imageTextureId, int cameraTexture, int targetFrameBuffer, FloatBuffer shapeBuffer, FloatBuffer textureBuffer) {
-        GLES20.glEnableVertexAttribArray(glCamPostionLoc);
+        GLES20.glEnableVertexAttribArray(glCamPositionLoc);
         GLES20.glEnableVertexAttribArray(glCamTextureCoordLoc);
         shapeBuffer.position(0);
-        GLES20.glVertexAttribPointer(glCamPostionLoc, 2,
+        GLES20.glVertexAttribPointer(glCamPositionLoc, 2,
                 GLES20.GL_FLOAT, false,
                 2 * 4, shapeBuffer);
         textureBuffer.position(0);
@@ -118,7 +119,7 @@ public class DrawMultiImageFilter extends BaseHardVideoFilter {
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, imageTextureId);
         GLES20.glUniform1i(glImageTextureLoc, 1);
         GLES20.glDrawElements(GLES20.GL_TRIANGLES, drawIndecesBuffer.limit(), GLES20.GL_UNSIGNED_SHORT, drawIndecesBuffer);
-        GLES20.glDisableVertexAttribArray(glCamPostionLoc);
+        GLES20.glDisableVertexAttribArray(glCamPositionLoc);
         GLES20.glDisableVertexAttribArray(glCamTextureCoordLoc);
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0);
         GLES20.glUseProgram(0);

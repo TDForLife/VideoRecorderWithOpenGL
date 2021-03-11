@@ -37,7 +37,7 @@ public class GPUImageCompatibleFilter<T extends GPUImageFilter> extends BaseHard
     }
 
     @Override
-    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeBuffer, FloatBuffer textrueBuffer) {
+    public void onDraw(int cameraTexture, int targetFrameBuffer, FloatBuffer shapeBuffer, FloatBuffer textureBuffer) {
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, targetFrameBuffer);
         innerGPUImageFilter.onDraw(cameraTexture, innerShapeBuffer, innerTextureBuffer);
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
