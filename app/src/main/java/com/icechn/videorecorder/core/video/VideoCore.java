@@ -26,11 +26,11 @@ import com.icechn.videorecorder.core.listener.IVideoChange.VideoChangeRunable;
 import com.icechn.videorecorder.encoder.MediaMuxerWrapper;
 import com.icechn.videorecorder.filter.hardvideofilter.BaseHardVideoFilter;
 import com.icechn.videorecorder.model.MediaMakerConfig;
-import com.icechn.videorecorder.model.MediaCodecGLWapper;
+import com.icechn.videorecorder.model.MediaCodecGLWrapper;
 import com.icechn.videorecorder.model.MediaConfig;
 import com.icechn.videorecorder.model.OffScreenGLWrapper;
 import com.icechn.videorecorder.model.RecordConfig;
-import com.icechn.videorecorder.model.ScreenGLWapper;
+import com.icechn.videorecorder.model.ScreenGLWrapper;
 import com.icechn.videorecorder.model.Size;
 
 import java.nio.FloatBuffer;
@@ -40,7 +40,11 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Created by lake on 16-5-24.
+ * 每个窗口一个上下文，优点是可以保证状态机不互相影响。但多个窗口需要使用同一份纹理，如何避免重复的资源申请呢？
+ * 答案是上下文之间的图形资源可以共享，先创建上下文 A，再以 A 为输入，创建上下文 B，则 B 可访问在 A 上下文下创建的纹理资源。
+ * 纹理、shader、Buffer 等资源是可以共享的，但 Frame Buffer Object(FBO)、Vertex Array Object（VAO）等容器对象不可共享，
+ * 但可将共享的纹理和 VBO 绑定到各自上下文的容器对象上。
+ * https://cloud.tencent.com/developer/news/190234
  */
 public class VideoCore implements IVideoCore {
 
@@ -49,25 +53,25 @@ public class VideoCore implements IVideoCore {
     private final Object mSyncObj = new Object();
     private final MediaMakerConfig mMediaMakerConfig;
 
-    // filter
-    private Lock lockVideoFilter;
-    private BaseHardVideoFilter videoFilter;
-    private MediaCodec dstVideoEncoder;
-    private MediaFormat dstVideoFormat;
+    private final Object syncVideoChangeListener = new Object();
     private final Object syncPreview = new Object();
+    private final Object syncIsLooping = new Object();
+    private final Lock lockVideoFilter = new ReentrantLock(false);
+
+    private BaseHardVideoFilter mHardVideoFilter;
+    private MediaCodec mDSTVideoEncoder;
+    private MediaFormat mDSTVideoFormat;
+
     private HandlerThread videoGLHandlerThread;
     private VideoGLHandler videoGLHandler;
-
-    final private Object syncVideoChangeListener = new Object();
     private IVideoChange mVideoChangeListener;
-    private final Object syncIsLooping = new Object();
-    private boolean isPreviewing = false;
-    private boolean isStreaming = false;
+
+    private boolean isPreviewing;
+    private boolean isStreaming;
     private int loopingInterval;
 
     public VideoCore(MediaMakerConfig parameters) {
         mMediaMakerConfig = parameters;
-        lockVideoFilter = new ReentrantLock(false);
     }
 
     public void onFrameAvailable() {
@@ -86,7 +90,8 @@ public class VideoCore implements IVideoCore {
             mMediaMakerConfig.mediaCodecAVCFrameRate = mMediaMakerConfig.videoFPS;
             loopingInterval = 1000 / mMediaMakerConfig.videoFPS;
             // TODO "video/avc" 应该由业务方来设置
-            dstVideoFormat = MediaFormat.createVideoFormat("video/avc", mMediaMakerConfig.previewVideoHeight, mMediaMakerConfig.previewVideoWidth);
+            mDSTVideoFormat = MediaFormat.createVideoFormat("video/avc",
+                    mMediaMakerConfig.previewVideoHeight, mMediaMakerConfig.previewVideoWidth);
             videoGLHandlerThread = new HandlerThread("GLThread");
             videoGLHandlerThread.start();
             videoGLHandler = new VideoGLHandler(videoGLHandlerThread.getLooper());
@@ -194,8 +199,8 @@ public class VideoCore implements IVideoCore {
 
     public void setVideoFilter(BaseHardVideoFilter baseHardVideoFilter) {
         lockVideoFilter.lock();
-        videoFilter = baseHardVideoFilter;
-        if (videoFilter != null) {
+        mHardVideoFilter = baseHardVideoFilter;
+        if (mHardVideoFilter != null) {
             int previewWidth;
             int previewHeight;
             if (mMediaMakerConfig.isPortrait) {
@@ -206,9 +211,9 @@ public class VideoCore implements IVideoCore {
                 previewHeight = mMediaMakerConfig.previewVideoWidth;
             }
             Log.d(TAG, "VideoFilter preView size is " + previewWidth + " x " + previewHeight);
-            videoFilter.updatePreviewSize(previewWidth, previewHeight);
-            videoFilter.updateSquareFlag(mMediaMakerConfig.isSquare);
-            videoFilter.updateCropRatio(mMediaMakerConfig.cropRatio);
+            mHardVideoFilter.updatePreviewSize(previewWidth, previewHeight);
+            mHardVideoFilter.updateSquareFlag(mMediaMakerConfig.isSquare);
+            mHardVideoFilter.updateCropRatio(mMediaMakerConfig.cropRatio);
         }
         lockVideoFilter.unlock();
     }
@@ -245,8 +250,8 @@ public class VideoCore implements IVideoCore {
         private final Object syncCameraTexObj = new Object();
         private SurfaceTexture cameraTexture;
         private SurfaceTexture previewScreenTexture;
-        private MediaCodecGLWapper mediaCodecGLWapper;
-        private ScreenGLWapper previewScreenGLWapper;
+        private MediaCodecGLWrapper mediaCodecGLWrapper;
+        private ScreenGLWrapper previewScreenGLWrapper;
         private OffScreenGLWrapper offScreenGLWrapper;
 
         private int sample2DFrameBuffer;
@@ -275,8 +280,8 @@ public class VideoCore implements IVideoCore {
 
         public VideoGLHandler(Looper looper) {
             super(looper);
-            previewScreenGLWapper = null;
-            mediaCodecGLWapper = null;
+            previewScreenGLWrapper = null;
+            mediaCodecGLWrapper = null;
             screenSize = new Size(1, 1);
             initBuffer();
         }
@@ -361,17 +366,17 @@ public class VideoCore implements IVideoCore {
                 }
                 break;
                 case WHAT_START_RECORDING: {
-                    if (dstVideoEncoder == null) {
-                        dstVideoEncoder = MediaCodecHelper.createHardVideoMediaCodec(mMediaMakerConfig, dstVideoFormat);
-                        if (dstVideoEncoder == null) {
+                    if (mDSTVideoEncoder == null) {
+                        mDSTVideoEncoder = MediaCodecHelper.createHardVideoMediaCodec(mMediaMakerConfig, mDSTVideoFormat);
+                        if (mDSTVideoEncoder == null) {
                             throw new RuntimeException("create Video MediaCodec failed");
                         }
                     }
-                    dstVideoEncoder.configure(dstVideoFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-                    initMediaCodecGL(dstVideoEncoder.createInputSurface());
-                    dstVideoEncoder.start();
+                    mDSTVideoEncoder.configure(mDSTVideoFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+                    initMediaCodecGL(mDSTVideoEncoder.createInputSurface());
+                    mDSTVideoEncoder.start();
                     MediaMuxerWrapper muxer = (MediaMuxerWrapper) msg.obj;
-                    videoSenderThread = new VideoSenderThread("VideoSenderThread", dstVideoEncoder, muxer);
+                    videoSenderThread = new VideoSenderThread("VideoSenderThread", mDSTVideoEncoder, muxer);
                     videoSenderThread.start();
                 }
                 break;
@@ -385,16 +390,16 @@ public class VideoCore implements IVideoCore {
                     }
                     videoSenderThread = null;
                     destroyMediaCodecGL();
-                    dstVideoEncoder.stop();
-                    dstVideoEncoder.release();
-                    dstVideoEncoder = null;
+                    mDSTVideoEncoder.stop();
+                    mDSTVideoEncoder.release();
+                    mDSTVideoEncoder = null;
                 }
                 break;
                 case WHAT_RESET_BITRATE: {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && mediaCodecGLWapper != null) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && mediaCodecGLWrapper != null) {
                         Bundle bitrateBundle = new Bundle();
                         bitrateBundle.putInt(MediaCodec.PARAMETER_KEY_VIDEO_BITRATE, msg.arg1);
-                        dstVideoEncoder.setParameters(bitrateBundle);
+                        mDSTVideoEncoder.setParameters(bitrateBundle);
                     }
                 }
                 break;
@@ -405,18 +410,18 @@ public class VideoCore implements IVideoCore {
                     mMediaMakerConfig.cropRatio = newParameters.cropRatio;
                     updateCameraIndex(currCamera);
                     resetFrameBuff();
-                    if (mediaCodecGLWapper != null) {
+                    if (mediaCodecGLWrapper != null) {
                         destroyMediaCodecGL();
-                        dstVideoEncoder.stop();
-                        dstVideoEncoder.release();
-                        dstVideoEncoder = MediaCodecHelper.createHardVideoMediaCodec(mMediaMakerConfig, dstVideoFormat);
-                        if (dstVideoEncoder == null) {
+                        mDSTVideoEncoder.stop();
+                        mDSTVideoEncoder.release();
+                        mDSTVideoEncoder = MediaCodecHelper.createHardVideoMediaCodec(mMediaMakerConfig, mDSTVideoFormat);
+                        if (mDSTVideoEncoder == null) {
                             throw new RuntimeException("create Video MediaCodec failed");
                         }
-                        dstVideoEncoder.configure(dstVideoFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-                        initMediaCodecGL(dstVideoEncoder.createInputSurface());
-                        dstVideoEncoder.start();
-                        videoSenderThread.updateMediaCodec(dstVideoEncoder);
+                        mDSTVideoEncoder.configure(mDSTVideoFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+                        initMediaCodecGL(mDSTVideoEncoder.createInputSurface());
+                        mDSTVideoEncoder.start();
+                        videoSenderThread.updateMediaCodec(mDSTVideoEncoder);
                     }
                     synchronized (syncVideoChangeListener) {
                         if (mVideoChangeListener != null) {
@@ -490,11 +495,11 @@ public class VideoCore implements IVideoCore {
             GLHelper.makeCurrent(offScreenGLWrapper);
             boolean isFilterLocked = lockVideoFilter();
             if (isFilterLocked) {
-                if (videoFilter != innerVideoFilter) {
+                if (mHardVideoFilter != innerVideoFilter) {
                     if (innerVideoFilter != null) {
                         innerVideoFilter.onDestroy();
                     }
-                    innerVideoFilter = videoFilter;
+                    innerVideoFilter = mHardVideoFilter;
                     if (innerVideoFilter != null) {
                         innerVideoFilter.onInit(mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
                     }
@@ -517,42 +522,42 @@ public class VideoCore implements IVideoCore {
         }
 
         private void drawMediaCodec(long currTime) {
-            if (mediaCodecGLWapper != null) {
-                GLHelper.makeCurrent(mediaCodecGLWapper);
-                GLES20.glUseProgram(mediaCodecGLWapper.drawProgram);
+            if (mediaCodecGLWrapper != null) {
+                GLHelper.makeCurrent(mediaCodecGLWrapper);
+                GLES20.glUseProgram(mediaCodecGLWrapper.drawProgram);
                 GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, frameBufferTexture);
-                GLES20.glUniform1i(mediaCodecGLWapper.drawTextureLoc, 0);
-                GLHelper.enableVertex(mediaCodecGLWapper.drawPostionLoc, mediaCodecGLWapper.drawTextureCoordLoc,
+                GLES20.glUniform1i(mediaCodecGLWrapper.drawTextureLoc, 0);
+                GLHelper.enableVertex(mediaCodecGLWrapper.drawPositionLoc, mediaCodecGLWrapper.drawTextureCoordLoc,
                         shapeVerticesBuffer, mediaCodecTextureVerticesBuffer);
                 doGLDraw();
                 GLES20.glFinish();
-                GLHelper.disableVertex(mediaCodecGLWapper.drawPostionLoc, mediaCodecGLWapper.drawTextureCoordLoc);
+                GLHelper.disableVertex(mediaCodecGLWrapper.drawPositionLoc, mediaCodecGLWrapper.drawTextureCoordLoc);
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
                 GLES20.glUseProgram(0);
-                EGLExt.eglPresentationTimeANDROID(mediaCodecGLWapper.eglDisplay, mediaCodecGLWapper.eglSurface, currTime);
-                if (!EGL14.eglSwapBuffers(mediaCodecGLWapper.eglDisplay, mediaCodecGLWapper.eglSurface)) {
+                EGLExt.eglPresentationTimeANDROID(mediaCodecGLWrapper.eglDisplay, mediaCodecGLWrapper.eglSurface, currTime);
+                if (!EGL14.eglSwapBuffers(mediaCodecGLWrapper.eglDisplay, mediaCodecGLWrapper.eglSurface)) {
                     throw new RuntimeException("eglSwapBuffers,failed!");
                 }
             }
         }
 
         private void drawPreviewScreen() {
-            if (previewScreenGLWapper != null) {
-                GLHelper.makeCurrent(previewScreenGLWapper);
-                GLES20.glUseProgram(previewScreenGLWapper.drawProgram);
+            if (previewScreenGLWrapper != null) {
+                GLHelper.makeCurrent(previewScreenGLWrapper);
+                GLES20.glUseProgram(previewScreenGLWrapper.drawProgram);
                 GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, frameBufferTexture);
-                GLES20.glUniform1i(previewScreenGLWapper.drawTextureLoc, 0);
-                GLHelper.enableVertex(previewScreenGLWapper.drawPostionLoc, previewScreenGLWapper.drawTextureCoordLoc,
+                GLES20.glUniform1i(previewScreenGLWrapper.drawTextureLoc, 0);
+                GLHelper.enableVertex(previewScreenGLWrapper.drawPositionLoc, previewScreenGLWrapper.drawTextureCoordLoc,
                         shapeVerticesBuffer, screenTextureVerticesBuffer);
                 GLES20.glViewport(0, 0, screenSize.getWidth(), screenSize.getHeight());
                 doGLDraw();
                 GLES20.glFinish();
-                GLHelper.disableVertex(previewScreenGLWapper.drawPostionLoc, previewScreenGLWapper.drawTextureCoordLoc);
+                GLHelper.disableVertex(previewScreenGLWrapper.drawPositionLoc, previewScreenGLWrapper.drawTextureCoordLoc);
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
                 GLES20.glUseProgram(0);
-                if (!EGL14.eglSwapBuffers(previewScreenGLWapper.eglDisplay, previewScreenGLWapper.eglSurface)) {
+                if (!EGL14.eglSwapBuffers(previewScreenGLWrapper.eglDisplay, previewScreenGLWrapper.eglSurface)) {
                     throw new RuntimeException("eglSwapBuffers,failed!");
                 }
             }
@@ -600,10 +605,10 @@ public class VideoCore implements IVideoCore {
 
                 int[] fb = new int[1];
                 int[] fbTexture = new int[1];
-                GLHelper.createCameraFrameBuffer(fb, fbTexture, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
+                GLHelper.createFrameBuffer(fb, fbTexture, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
                 sample2DFrameBuffer = fb[0];
                 sample2DFrameBufferTexture = fbTexture[0];
-                GLHelper.createCameraFrameBuffer(fb, fbTexture, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
+                GLHelper.createFrameBuffer(fb, fbTexture, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
                 frameBuffer = fb[0];
                 frameBufferTexture = fbTexture[0];
             } else {
@@ -630,60 +635,61 @@ public class VideoCore implements IVideoCore {
         }
 
         private void initPreviewScreenGL(SurfaceTexture screenSurfaceTexture) {
-            if (previewScreenGLWapper == null) {
+            if (previewScreenGLWrapper == null) {
                 previewScreenTexture = screenSurfaceTexture;
-                previewScreenGLWapper = new ScreenGLWapper();
-                GLHelper.initScreenGL(previewScreenGLWapper, offScreenGLWrapper.eglContext, screenSurfaceTexture);
-                GLHelper.makeCurrent(previewScreenGLWapper);
-                previewScreenGLWapper.drawProgram = GLHelper.createScreenProgram();
-                GLES20.glUseProgram(previewScreenGLWapper.drawProgram);
-                previewScreenGLWapper.drawTextureLoc = GLES20.glGetUniformLocation(previewScreenGLWapper.drawProgram, "uTexture");
-                previewScreenGLWapper.drawPostionLoc = GLES20.glGetAttribLocation(previewScreenGLWapper.drawProgram, "aPosition");
-                previewScreenGLWapper.drawTextureCoordLoc = GLES20.glGetAttribLocation(previewScreenGLWapper.drawProgram, "aTextureCoord");
+                previewScreenGLWrapper = new ScreenGLWrapper();
+                // Share offScreenGLWrapper.eglContext 资源共享，状态独立
+                GLHelper.initScreenGL(previewScreenGLWrapper, offScreenGLWrapper.eglContext, screenSurfaceTexture);
+                GLHelper.makeCurrent(previewScreenGLWrapper);
+                previewScreenGLWrapper.drawProgram = GLHelper.createScreenProgram();
+                GLES20.glUseProgram(previewScreenGLWrapper.drawProgram);
+                previewScreenGLWrapper.drawPositionLoc = GLES20.glGetAttribLocation(previewScreenGLWrapper.drawProgram, "aPosition");
+                previewScreenGLWrapper.drawTextureCoordLoc = GLES20.glGetAttribLocation(previewScreenGLWrapper.drawProgram, "aTextureCoord");
+                previewScreenGLWrapper.drawTextureLoc = GLES20.glGetUniformLocation(previewScreenGLWrapper.drawProgram, "uTexture");
             } else {
                 throw new IllegalStateException("initScreenGL without destroyScreenGL");
             }
         }
 
         private void destroyPreviewScreenGL() {
-            if (previewScreenGLWapper != null) {
-                GLHelper.makeCurrent(previewScreenGLWapper);
-                GLES20.glDeleteProgram(previewScreenGLWapper.drawProgram);
-                EGL14.eglDestroySurface(previewScreenGLWapper.eglDisplay, previewScreenGLWapper.eglSurface);
-                EGL14.eglDestroyContext(previewScreenGLWapper.eglDisplay, previewScreenGLWapper.eglContext);
-                EGL14.eglTerminate(previewScreenGLWapper.eglDisplay);
-                EGL14.eglMakeCurrent(previewScreenGLWapper.eglDisplay, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT);
-                previewScreenGLWapper = null;
+            if (previewScreenGLWrapper != null) {
+                GLHelper.makeCurrent(previewScreenGLWrapper);
+                GLES20.glDeleteProgram(previewScreenGLWrapper.drawProgram);
+                EGL14.eglDestroySurface(previewScreenGLWrapper.eglDisplay, previewScreenGLWrapper.eglSurface);
+                EGL14.eglDestroyContext(previewScreenGLWrapper.eglDisplay, previewScreenGLWrapper.eglContext);
+                EGL14.eglTerminate(previewScreenGLWrapper.eglDisplay);
+                EGL14.eglMakeCurrent(previewScreenGLWrapper.eglDisplay, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT);
+                previewScreenGLWrapper = null;
             } else {
                 throw new IllegalStateException("destroyScreenGL without initScreenGL");
             }
         }
 
         private void initMediaCodecGL(Surface mediaCodecSurface) {
-            if (mediaCodecGLWapper == null) {
-                mediaCodecGLWapper = new MediaCodecGLWapper();
-                GLHelper.initMediaCodecGL(mediaCodecGLWapper, offScreenGLWrapper.eglContext, mediaCodecSurface);
-                GLHelper.makeCurrent(mediaCodecGLWapper);
+            if (mediaCodecGLWrapper == null) {
+                mediaCodecGLWrapper = new MediaCodecGLWrapper();
+                GLHelper.initMediaCodecGL(mediaCodecGLWrapper, offScreenGLWrapper.eglContext, mediaCodecSurface);
+                GLHelper.makeCurrent(mediaCodecGLWrapper);
                 GLES20.glEnable(GLES11Ext.GL_TEXTURE_EXTERNAL_OES);
-                mediaCodecGLWapper.drawProgram = GLHelper.createMediaCodecProgram();
-                GLES20.glUseProgram(mediaCodecGLWapper.drawProgram);
-                mediaCodecGLWapper.drawTextureLoc = GLES20.glGetUniformLocation(mediaCodecGLWapper.drawProgram, "uTexture");
-                mediaCodecGLWapper.drawPostionLoc = GLES20.glGetAttribLocation(mediaCodecGLWapper.drawProgram, "aPosition");
-                mediaCodecGLWapper.drawTextureCoordLoc = GLES20.glGetAttribLocation(mediaCodecGLWapper.drawProgram, "aTextureCoord");
+                mediaCodecGLWrapper.drawProgram = GLHelper.createMediaCodecProgram();
+                GLES20.glUseProgram(mediaCodecGLWrapper.drawProgram);
+                mediaCodecGLWrapper.drawPositionLoc = GLES20.glGetAttribLocation(mediaCodecGLWrapper.drawProgram, "aPosition");
+                mediaCodecGLWrapper.drawTextureCoordLoc = GLES20.glGetAttribLocation(mediaCodecGLWrapper.drawProgram, "aTextureCoord");
+                mediaCodecGLWrapper.drawTextureLoc = GLES20.glGetUniformLocation(mediaCodecGLWrapper.drawProgram, "uTexture");
             } else {
                 throw new IllegalStateException("initMediaCodecGL without destroyMediaCodecGL");
             }
         }
 
         private void destroyMediaCodecGL() {
-            if (mediaCodecGLWapper != null) {
-                GLHelper.makeCurrent(mediaCodecGLWapper);
-                GLES20.glDeleteProgram(mediaCodecGLWapper.drawProgram);
-                EGL14.eglDestroySurface(mediaCodecGLWapper.eglDisplay, mediaCodecGLWapper.eglSurface);
-                EGL14.eglDestroyContext(mediaCodecGLWapper.eglDisplay, mediaCodecGLWapper.eglContext);
-                EGL14.eglTerminate(mediaCodecGLWapper.eglDisplay);
-                EGL14.eglMakeCurrent(mediaCodecGLWapper.eglDisplay, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT);
-                mediaCodecGLWapper = null;
+            if (mediaCodecGLWrapper != null) {
+                GLHelper.makeCurrent(mediaCodecGLWrapper);
+                GLES20.glDeleteProgram(mediaCodecGLWrapper.drawProgram);
+                EGL14.eglDestroySurface(mediaCodecGLWrapper.eglDisplay, mediaCodecGLWrapper.eglSurface);
+                EGL14.eglDestroyContext(mediaCodecGLWrapper.eglDisplay, mediaCodecGLWrapper.eglContext);
+                EGL14.eglTerminate(mediaCodecGLWrapper.eglDisplay);
+                EGL14.eglMakeCurrent(mediaCodecGLWrapper.eglDisplay, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT);
+                mediaCodecGLWrapper = null;
             } else {
                 throw new IllegalStateException("destroyMediaCodecGL without initMediaCodecGL");
             }
@@ -696,10 +702,10 @@ public class VideoCore implements IVideoCore {
             GLES20.glDeleteFramebuffers(1, new int[]{sample2DFrameBuffer}, 0);
             GLES20.glDeleteTextures(1, new int[]{sample2DFrameBufferTexture}, 0);
             int[] fb = new int[1], fbt = new int[1];
-            GLHelper.createCameraFrameBuffer(fb, fbt, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
+            GLHelper.createFrameBuffer(fb, fbt, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
             sample2DFrameBuffer = fb[0];
             sample2DFrameBufferTexture = fbt[0];
-            GLHelper.createCameraFrameBuffer(fb, fbt, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
+            GLHelper.createFrameBuffer(fb, fbt, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
             frameBuffer = fb[0];
             frameBufferTexture = fbt[0];
         }

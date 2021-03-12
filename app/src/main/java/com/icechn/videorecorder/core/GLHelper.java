@@ -16,9 +16,9 @@ import java.nio.ShortBuffer;
 import javax.microedition.khronos.egl.EGL10;
 
 import com.icechn.videorecorder.model.MediaMakerConfig;
-import com.icechn.videorecorder.model.MediaCodecGLWapper;
+import com.icechn.videorecorder.model.MediaCodecGLWrapper;
 import com.icechn.videorecorder.model.OffScreenGLWrapper;
-import com.icechn.videorecorder.model.ScreenGLWapper;
+import com.icechn.videorecorder.model.ScreenGLWrapper;
 import com.icechn.videorecorder.tools.GLESTools;
 
 /**
@@ -70,11 +70,11 @@ public class GLHelper {
             "}";
 
     /**
-     * Android相机输出的原始数据一般都为 YUV 数据，而在 OpenGL 中使用的绝大部分纹理 ID 都是 RGBA 的格式，
+     * Android 相机输出的原始数据一般都为 YUV 数据，而在 OpenGL 中使用的绝大部分纹理 ID 都是 RGBA 的格式，
      * 所以原始数据都是无法直接用 OpenGL 来渲染的。所以我们添加了一个扩展 GL_OES_EGL_image_external
      * 使用 OES 纹理后，我们不需要在片段着色器中自己做 YUV to RGBA 的转换，因为 OES 纹理可以直接接收 YUV 数据或者直接输出 YUV 数据
      * samplerExternalOES 是 Android 用来渲染相机数据，相应的，需要绑定到 GL_TEXTURE_EXTERNAL_OES
-     * sampler2D 则用于渲染图片，绑定 GL_TEXTURE_2D
+     * sampler2D 则用于渲染 RGB 的，绑定 GL_TEXTURE_2D
      * https://juejin.cn/post/6844903834523811853
      */
     private static final String FRAGMENT_SHADER_CAMERA2D = "" +
@@ -197,7 +197,7 @@ public class GLHelper {
         }
     }
 
-    public static void initMediaCodecGL(MediaCodecGLWapper wrapper, EGLContext sharedContext, Surface mediaInputSurface) {
+    public static void initMediaCodecGL(MediaCodecGLWrapper wrapper, EGLContext sharedContext, Surface mediaInputSurface) {
         wrapper.eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY);
         if (EGL14.EGL_NO_DISPLAY == wrapper.eglDisplay) {
             throw new RuntimeException("initMediaCodecGL get eglGetDisplay has failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
@@ -248,7 +248,7 @@ public class GLHelper {
         }
     }
 
-    public static void initScreenGL(ScreenGLWapper wrapper, EGLContext sharedContext, SurfaceTexture screenSurface) {
+    public static void initScreenGL(ScreenGLWrapper wrapper, EGLContext sharedContext, SurfaceTexture screenSurface) {
         wrapper.eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY);
         if (EGL14.EGL_NO_DISPLAY == wrapper.eglDisplay) {
             throw new RuntimeException("initScreenGL get eglGetDisplay has failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
@@ -309,19 +309,19 @@ public class GLHelper {
         }
     }
 
-    public static void makeCurrent(MediaCodecGLWapper wrapper) {
+    public static void makeCurrent(MediaCodecGLWrapper wrapper) {
         if (!EGL14.eglMakeCurrent(wrapper.eglDisplay, wrapper.eglSurface, wrapper.eglSurface, wrapper.eglContext)) {
             throw new RuntimeException("makeCurrent media codec context failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
     }
 
-    public static void makeCurrent(ScreenGLWapper wrapper) {
+    public static void makeCurrent(ScreenGLWrapper wrapper) {
         if (!EGL14.eglMakeCurrent(wrapper.eglDisplay, wrapper.eglSurface, wrapper.eglSurface, wrapper.eglContext)) {
             throw new RuntimeException("makeCurrent screen context failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
         }
     }
 
-    public static void createCameraFrameBuffer(int[] frameBuffer, int[] frameBufferTexture, int width, int height) {
+    public static void createFrameBuffer(int[] frameBuffer, int[] frameBufferTexture, int width, int height) {
         GLES20.glGenFramebuffers(1, frameBuffer, 0);
         GLES20.glGenTextures(1, frameBufferTexture, 0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, frameBufferTexture[0]);
