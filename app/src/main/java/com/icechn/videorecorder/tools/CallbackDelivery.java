@@ -1,4 +1,4 @@
-package com.icechn.videorecorder.client;
+package com.icechn.videorecorder.tools;
 
 import android.os.Handler;
 import android.os.Looper;

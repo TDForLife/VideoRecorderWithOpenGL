@@ -99,8 +99,8 @@ public class VideoClient {
         return mCamera;
     }
 
-    private boolean startVideo() {
-        mCameraTexture = new SurfaceTexture(IVideoCore.OVERWATCH_TEXTURE_ID);
+    private boolean previewCamera() {
+        mCameraTexture = new SurfaceTexture(IVideoCore.OVERWATCH_CAMERA_TEXTURE_ID);
         mCameraTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
             @Override
             public void onFrameAvailable(SurfaceTexture surfaceTexture) {
@@ -125,7 +125,7 @@ public class VideoClient {
     public boolean startPreview(SurfaceTexture surfaceTexture, int visualWidth, int visualHeight) {
         synchronized (mPrepareSyncObj) {
             if (!isWorking() && !isPreviewing) {
-                if (!startVideo()) {
+                if (!previewCamera()) {
                     mMediaMakerConfig.dump();
                     Log.e("", "VideoClient,start(),failed");
                     return false;
@@ -160,7 +160,7 @@ public class VideoClient {
     public boolean startRecording(MediaMuxerWrapper muxer) {
         synchronized (mPrepareSyncObj) {
             if (!isWorking() && !isPreviewing) {
-                if (!startVideo()) {
+                if (!previewCamera()) {
                     mMediaMakerConfig.dump();
                     Log.e("", "VideoClient,start(),failed");
                     return false;
@@ -224,7 +224,7 @@ public class VideoClient {
             // prepareVideo();
             mCameraTexture.release();
             mVideoCore.updateCamTexture(null);
-            startVideo();
+            previewCamera();
             mVideoCore.updateCamTexture(mCameraTexture);
             return true;
         }
