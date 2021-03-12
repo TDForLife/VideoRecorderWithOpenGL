@@ -49,5 +49,30 @@
             android:visibility="gone" />
     </LinearLayout>
 
+    <com.icechn.videorecorder.test.GLLinearLayout
+        android:id="@+id/gl_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/gl_text_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Hello from TextView" />
+
+        <ImageView
+            android:id="@+id/gl_icon_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_launcher" />
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_launcher" />
+
+    </com.icechn.videorecorder.test.GLLinearLayout>
+
 </RelativeLayout>
 

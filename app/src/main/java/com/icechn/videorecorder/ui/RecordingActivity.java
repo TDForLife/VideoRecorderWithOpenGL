@@ -1,5 +1,6 @@
 package com.icechn.videorecorder.ui;
 
+import android.animation.ObjectAnimator;
 import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
@@ -13,6 +14,8 @@ import android.util.Log;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.icechn.videorecorder.R;
@@ -61,9 +64,40 @@ public class RecordingActivity extends AppCompatActivity implements TextureView.
         findViewById(R.id.btn_flash).setOnClickListener(this);
 
         prepareStreamingClient();
-        onSetFilters();
+
+        // onSetFilters();
 
         printScreenDisplayInfo();
+    }
+
+    private void initGLRenderView() {
+//        final GLSurfaceView  mGLSurfaceView = findViewById(R.id.gl_surface_view);
+//        final GLRenderable mGLLinearLayout= findViewById(R.id.gl_layout);
+//        ViewToGLRenderer viewToGlRenderer = new NormalGLRenderer(this);
+//        mGLSurfaceView.setEGLContextClientVersion(2);
+//        mGLSurfaceView.setRenderer(viewToGlRenderer);
+//        mGLLinearLayout.setViewToGLRenderer(viewToGlRenderer);
+
+
+    }
+
+    private void activeGLRender() {
+        final TextView textView = findViewById(R.id.gl_text_view);
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                startPopsAnimTrans(textView);
+            }
+        }, 2000);
+
+        final ImageView iconView = findViewById(R.id.gl_icon_view);
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                startPopsAnimTrans(iconView);
+                textView.setText("NiuBi");
+            }
+        }, 4000);
     }
 
     @Override
@@ -242,4 +276,11 @@ public class RecordingActivity extends AppCompatActivity implements TextureView.
         Log.d(TAG, "Screen info : size - " + screenWidth + " x " + screenHeight + " and density - " + screenDensity);
     }
 
+    // 属性动画-平移
+    private void startPopsAnimTrans(final View view) {
+        float[] x = {260f};
+        ObjectAnimator objectAnimatorX = ObjectAnimator.ofFloat(view, "translationX", x);
+        objectAnimatorX.setDuration(1000);
+        objectAnimatorX.start();
+    }
 }
