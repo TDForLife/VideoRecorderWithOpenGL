@@ -157,7 +157,7 @@ public class NormalGLRenderer extends ViewToGLRenderer {
 
         doGLDraw();
 
-        // GLES20.glFinish();
+        GLES20.glFinish();
         disableVertex(mPositionHandle, mTextureCoordHandle);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
         GLES20.glUseProgram(0);

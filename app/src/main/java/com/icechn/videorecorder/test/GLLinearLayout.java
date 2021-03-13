@@ -3,14 +3,17 @@ package com.icechn.videorecorder.test;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.PorterDuff;
 import android.os.Build;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.widget.LinearLayout;
 
 /**
  * Created by user on 3/15/15.
  */
-public class GLLinearLayout extends LinearLayout implements GLRenderable {
+public class GLLinearLayout extends LinearLayout implements  GLRenderable {
 
     private ViewToGLRenderer mViewToGLRenderer;
 
@@ -32,19 +35,22 @@ public class GLLinearLayout extends LinearLayout implements GLRenderable {
     // drawing magic
     @Override
     public void draw(Canvas canvas) {
+        Log.d("zwt", "GLLinearLayout draw...");
+        if (mViewToGLRenderer == null) {
+            super.draw(canvas);
+            return;
+        }
         Canvas glAttachedCanvas = mViewToGLRenderer.onDrawViewBegin();
-        if (glAttachedCanvas != null) {
-            //prescale canvas to make sure content fits
-            float xScale = glAttachedCanvas.getWidth() / (float) canvas.getWidth();
-            glAttachedCanvas.scale(xScale, xScale);
-            //draw the view to provided canvas
+        if(glAttachedCanvas != null) {
+            glAttachedCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+//            float xScale = glAttachedCanvas.getWidth() / (float)canvas.getWidth();
+//            glAttachedCanvas.scale(xScale, xScale);
             super.draw(glAttachedCanvas);
         }
-        // notify the canvas is updated
         mViewToGLRenderer.onDrawViewEnd();
     }
 
-    public void setViewToGLRenderer(ViewToGLRenderer viewToGLRenderer) {
+    public void setViewToGLRenderer(ViewToGLRenderer viewToGLRenderer){
         mViewToGLRenderer = viewToGLRenderer;
     }
 }

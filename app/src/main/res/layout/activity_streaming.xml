@@ -15,6 +15,11 @@
             android:layout_height="match_parent" />
     </FrameLayout>
 
+    <android.opengl.GLSurfaceView
+        android:id="@+id/preview_view_gl_sv"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
     <LinearLayout
         android:id="@+id/layout_btns"
         android:layout_width="match_parent"
