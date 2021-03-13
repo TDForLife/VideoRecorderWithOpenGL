@@ -3,8 +3,10 @@ package com.icechn.videorecorder.client;
 
 import android.content.Context;
 import android.graphics.SurfaceTexture;
+import android.opengl.EGLContext;
 import android.util.Log;
 
+import com.icechn.videorecorder.client.channel.ViewChannel;
 import com.icechn.videorecorder.core.listener.IVideoChange;
 import com.icechn.videorecorder.encoder.MediaMuxerWrapper;
 import com.icechn.videorecorder.filter.hardvideofilter.BaseHardVideoFilter;
@@ -259,5 +261,9 @@ public class RecorderClient {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public ViewChannel getViewChannel() {
+        return mVideoClient.getViewChannel();
     }
 }

@@ -44,7 +44,7 @@ public class GLHelper {
             "varying highp vec2 vTextureCoord;\n" +
             "uniform sampler2D uTexture;\n" +
             "void main(){\n" +
-            "    vec4  color = texture2D(uTexture, vTextureCoord);\n" +
+            "    vec4 color = texture2D(uTexture, vTextureCoord);\n" +
             "    gl_FragColor = color;\n" +
             "}";
 
@@ -315,6 +315,12 @@ public class GLHelper {
         }
     }
 
+    public static void makeCurrentForView(MediaCodecGLWrapper wrapper) {
+        if (!EGL14.eglMakeCurrent(wrapper.eglDisplay, wrapper.eglSurface, wrapper.eglSurface, wrapper.eglViewContext)) {
+            throw new RuntimeException("makeCurrent media codec context failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
+        }
+    }
+
     public static void makeCurrent(ScreenGLWrapper wrapper) {
         if (!EGL14.eglMakeCurrent(wrapper.eglDisplay, wrapper.eglSurface, wrapper.eglSurface, wrapper.eglContext)) {
             throw new RuntimeException("makeCurrent screen context failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
@@ -354,6 +360,10 @@ public class GLHelper {
     }
 
     public static int createCamera2DProgram() {
+        return GLESTools.createProgram(VERTEX_SHADER_CAMERA2D, FRAGMENT_SHADER_CAMERA2D);
+    }
+
+    public static int createView2DProgram() {
         return GLESTools.createProgram(VERTEX_SHADER_CAMERA2D, FRAGMENT_SHADER_CAMERA2D);
     }
 

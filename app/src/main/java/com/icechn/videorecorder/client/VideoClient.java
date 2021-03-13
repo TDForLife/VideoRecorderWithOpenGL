@@ -6,6 +6,7 @@ import android.hardware.Camera;
 import android.hardware.Camera.CameraInfo;
 import android.util.Log;
 
+import com.icechn.videorecorder.client.channel.ViewChannel;
 import com.icechn.videorecorder.core.CameraHelper;
 import com.icechn.videorecorder.core.listener.IVideoChange;
 import com.icechn.videorecorder.core.video.IVideoCore;
@@ -32,17 +33,21 @@ public class VideoClient {
     private boolean isRecording;
     private boolean isPreviewing;
 
-    // Camera
+    // Camera channel
     private Camera mCamera;
     private SurfaceTexture mCameraTexture;
     private final int mCameraNum;
     private int mCurrentCameraIndex;
     private boolean mIsFrontCamera;
 
+    // View channel
+    private final ViewChannel mViewChannel;
+
     public VideoClient(Context context, MediaMakerConfig parameters) {
         mMediaMakerConfig = parameters;
         mCameraNum = Camera.getNumberOfCameras();
         mCurrentCameraIndex = Camera.CameraInfo.CAMERA_FACING_BACK;
+        mViewChannel = new ViewChannel();
         mIsFrontCamera = false;
         isRecording = false;
         isPreviewing = false;
@@ -122,24 +127,30 @@ public class VideoClient {
         return true;
     }
 
+    public void updatePreview(int visualWidth, int visualHeight) {
+        mVideoCore.updatePreview(visualWidth, visualHeight);
+    }
+
+    private boolean checkPreviewStatus() {
+        if (!isWorking() && !isPreviewing) {
+            if (!previewCamera()) {
+                mMediaMakerConfig.dump();
+                return false;
+            }
+            mVideoCore.updateCameraTexture(mCameraTexture);
+        }
+        return true;
+    }
+
     public boolean startPreview(SurfaceTexture surfaceTexture, int visualWidth, int visualHeight) {
         synchronized (mPrepareSyncObj) {
-            if (!isWorking() && !isPreviewing) {
-                if (!previewCamera()) {
-                    mMediaMakerConfig.dump();
-                    Log.e("", "VideoClient,start(),failed");
-                    return false;
-                }
-                mVideoCore.updateCamTexture(mCameraTexture);
+            if (!checkPreviewStatus()) {
+                return false;
             }
             mVideoCore.startPreview(surfaceTexture, visualWidth, visualHeight);
             isPreviewing = true;
             return true;
         }
-    }
-
-    public void updatePreview(int visualWidth, int visualHeight) {
-        mVideoCore.updatePreview(visualWidth, visualHeight);
     }
 
     public boolean stopPreview(boolean releaseTexture) {
@@ -148,7 +159,7 @@ public class VideoClient {
                 mVideoCore.stopPreview(releaseTexture);
                 if (!isWorking()) {
                     mCamera.stopPreview();
-                    mVideoCore.updateCamTexture(null);
+                    mVideoCore.updateCameraTexture(null);
                     mCameraTexture.release();
                 }
             }
@@ -159,14 +170,13 @@ public class VideoClient {
 
     public boolean startRecording(MediaMuxerWrapper muxer) {
         synchronized (mPrepareSyncObj) {
-            if (!isWorking() && !isPreviewing) {
-                if (!previewCamera()) {
-                    mMediaMakerConfig.dump();
-                    Log.e("", "VideoClient,start(),failed");
-                    return false;
-                }
-                mVideoCore.updateCamTexture(mCameraTexture);
+            if (!checkPreviewStatus()) {
+                return false;
             }
+            // prepare view texture
+//            mViewTexture = new SurfaceTexture(IVideoCore.OVERWATCH_VIEW_TEXTURE_ID);
+//            mViewChannel.setSurfaceTexture(mViewTexture, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
+            // start recording
             mVideoCore.startRecording(muxer);
             if (mMediaMakerConfig.saveVideoEnable) {
                 isRecording = true;
@@ -181,8 +191,10 @@ public class VideoClient {
                 mVideoCore.stopRecording();
                 if (!isPreviewing) {
                     mCamera.stopPreview();
-                    mVideoCore.updateCamTexture(null);
+                    mVideoCore.updateCameraTexture(null);
                     mCameraTexture.release();
+//                    mVideoCore.updateViewTexture(null);
+//                    mViewChannel.releaseSurface();
                 }
             }
             isRecording = false;
@@ -223,9 +235,9 @@ public class VideoClient {
             }
             // prepareVideo();
             mCameraTexture.release();
-            mVideoCore.updateCamTexture(null);
+            mVideoCore.updateCameraTexture(null);
             previewCamera();
-            mVideoCore.updateCamTexture(mCameraTexture);
+            mVideoCore.updateCameraTexture(mCameraTexture);
             return true;
         }
     }
@@ -333,9 +345,9 @@ public class VideoClient {
         } else {
             config.cropRatio = -(1.0f - pr / vr) / 2.0f;
         }
-        Log.d(TAG, "resolveResolution preview size - " + pw + " x " + ph + ", video size - " + vw + " x " + vh);
-        Log.d(TAG, "resolveResolution preview aspect ratio - " + pr + " and video aspect ratio - " + vr + " then cropRatio - " + config.cropRatio);
     }
 
-
+    public ViewChannel getViewChannel() {
+        return mViewChannel;
+    }
 }

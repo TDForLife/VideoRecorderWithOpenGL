@@ -78,13 +78,7 @@ public class RecordingActivity extends AppCompatActivity implements TextureView.
         mViewToGLRender = new NormalGLRenderer(this);
         mGLSurfaceView.setRenderer(mViewToGLRender);
         mGLLinearLayout.setViewToGLRenderer(mViewToGLRender);
-        mViewToGLRender.setISurface(new ViewToGLRenderer.ISurface() {
-            @Override
-            public void onSurfaceTextureCreated() {
-                Log.d("zwy", "mViewToGLRender.getGLSurfaceTexture() null ? " + (mViewToGLRender.getGLSurfaceTexture() == null));
-                mRecorderClient.setViewTexture(mViewToGLRender.getGLSurfaceTexture(), mViewToGLRender.getGLSurfaceTextureID(), mViewToGLRender.getEGLContext());
-            }
-        });
+
 
         mTextureView = findViewById(R.id.preview_texture_view);
         mTextureView.setKeepScreenOn(true);
@@ -103,8 +97,7 @@ public class RecordingActivity extends AppCompatActivity implements TextureView.
     }
 
     private void initGLRenderView() {
-//        final GLLinearLayout glLinearLayout = findViewById(R.id.gl_layout);
-//        glLinearLayout.setViewViewChannel(mRecorderClient.getViewChannel());
+        // mGLLinearLayout.setViewViewChannel(mRecorderClient.getViewChannel());
         activeGLRender();
     }
 

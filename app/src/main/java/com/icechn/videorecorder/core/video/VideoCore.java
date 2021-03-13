@@ -18,7 +18,7 @@ import android.os.SystemClock;
 import android.util.Log;
 import android.view.Surface;
 
-import com.icechn.videorecorder.client.CallbackDelivery;
+import com.icechn.videorecorder.tools.CallbackDelivery;
 import com.icechn.videorecorder.core.GLHelper;
 import com.icechn.videorecorder.core.MediaCodecHelper;
 import com.icechn.videorecorder.core.listener.IVideoChange;
@@ -152,7 +152,7 @@ public class VideoCore implements IVideoCore {
     }
 
     @Override
-    public void updateCamTexture(SurfaceTexture camTex) {
+    public void updateCameraTexture(SurfaceTexture camTex) {
         synchronized (mSyncObj) {
             if (videoGLHandler != null) {
                 videoGLHandler.updateCameraTexture(camTex);
@@ -242,14 +242,16 @@ public class VideoCore implements IVideoCore {
 
         static final int FILTER_LOCK_TOLERATION = 3; // 3ms
 
-        private Size screenSize;
         private final Object syncFrameNumObj = new Object();
-        private int frameNum = 0;
+        private final Object syncCameraTexObj = new Object();
+
+        private int frameNum;
+        private Size screenSize;
 
         // gl stuff
-        private final Object syncCameraTexObj = new Object();
         private SurfaceTexture cameraTexture;
         private SurfaceTexture previewScreenTexture;
+
         private MediaCodecGLWrapper mediaCodecGLWrapper;
         private ScreenGLWrapper previewScreenGLWrapper;
         private OffScreenGLWrapper offScreenGLWrapper;
@@ -293,19 +295,21 @@ public class VideoCore implements IVideoCore {
                     GLHelper.makeCurrent(offScreenGLWrapper);
                     synchronized (syncFrameNumObj) {
                         synchronized (syncCameraTexObj) {
-                            if (cameraTexture != null) {
-                                while (frameNum != 0) {
-                                    cameraTexture.updateTexImage();
-                                    --frameNum;
-                                    if (!dropNextFrame) {
-                                        hasNewFrame = true;
-                                    } else {
-                                        dropNextFrame = false;
-                                        hasNewFrame = false;
-                                    }
-                                }
-                            } else {
+                            if (cameraTexture == null) {
                                 break;
+                            }
+                            while (frameNum != 0) {
+                                cameraTexture.updateTexImage();
+//                                if (viewTexture != null) {
+//                                    viewTexture.updateTexImage();
+//                                }
+                                --frameNum;
+                                if (!dropNextFrame) {
+                                    hasNewFrame = true;
+                                } else {
+                                    dropNextFrame = false;
+                                    hasNewFrame = false;
+                                }
                             }
                         }
                     }
@@ -450,21 +454,41 @@ public class VideoCore implements IVideoCore {
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
             // 把一个纹理附加到帧缓冲上的时候，所有渲染命令会写入到纹理上
             // 在此之前 OVERWATCH_TEXTURE_ID 纹理 ID 已经作为纹理传入 CameraTexture 接收 Camera 的预览数据了
-            GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, OVERWATCH_TEXTURE_ID);
+            GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, OVERWATCH_CAMERA_TEXTURE_ID);
             GLES20.glUniform1i(offScreenGLWrapper.cam2dTextureLocation, 0);
             synchronized (syncCameraBufferObj) {
                 GLHelper.enableVertex(offScreenGLWrapper.cam2dPositionLocation, offScreenGLWrapper.cam2dTextureCoordsLocation,
                         shapeVerticesBuffer, camera2dTextureVerticesBuffer);
             }
-            float[] textureMatrix = new float[16];
-            cameraTexture.getTransformMatrix(textureMatrix);
-            GLES20.glUniformMatrix4fv(offScreenGLWrapper.cam2dTextureMatrixLocation, 1, false, textureMatrix, 0);
+            float[] cameraTextureMatrix = new float[16];
+            cameraTexture.getTransformMatrix(cameraTextureMatrix);
+            GLES20.glUniformMatrix4fv(offScreenGLWrapper.cam2dTextureMatrixLocation, 1, false, cameraTextureMatrix, 0);
             GLES20.glViewport(0, 0, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
 
             doGLDraw();
 
             GLES20.glFinish();
             GLHelper.disableVertex(offScreenGLWrapper.cam2dPositionLocation, offScreenGLWrapper.cam2dTextureCoordsLocation);
+
+//            // 绘制 View
+//            if (viewTexture != null) {
+//                GLES20.glUseProgram(offScreenGLWrapper.view2dProgram);
+//                GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
+//                GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, viewTextureId);
+//                GLES20.glUniform1i(offScreenGLWrapper.view2dTextureLocation, 1);
+//                synchronized (syncCameraBufferObj) {
+//                    GLHelper.enableVertex(offScreenGLWrapper.view2dPositionLocation, offScreenGLWrapper.view2dTextureCoordsLocation,
+//                            shapeVerticesBuffer, camera2dTextureVerticesBuffer);
+//                }
+//                float[] viewTextureMatrix = new float[16];
+//                viewTexture.getTransformMatrix(viewTextureMatrix);
+//                GLES20.glUniformMatrix4fv(offScreenGLWrapper.view2dTextureMatrixLocation, 1, false, viewTextureMatrix, 0);
+//                GLES20.glViewport(0, 0, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
+//                doGLDraw();
+//                GLES20.glFinish();
+//                GLHelper.disableVertex(offScreenGLWrapper.view2dPositionLocation, offScreenGLWrapper.view2dTextureCoordsLocation);
+//            }
+
             GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0);
             // 卸载当前执行的 Program
             GLES20.glUseProgram(0);
@@ -595,13 +619,20 @@ public class VideoCore implements IVideoCore {
                 offScreenGLWrapper.camPositionLocation = GLES20.glGetAttribLocation(offScreenGLWrapper.cameraProgram, "aPosition");
                 offScreenGLWrapper.camTextureCoordsLocation = GLES20.glGetAttribLocation(offScreenGLWrapper.cameraProgram, "aTextureCoord");
                 offScreenGLWrapper.camTextureLocation = GLES20.glGetUniformLocation(offScreenGLWrapper.cameraProgram, "uTexture");
-                // camera2d
+                // camera 2d
                 offScreenGLWrapper.camera2dProgram = GLHelper.createCamera2DProgram();
                 GLES20.glUseProgram(offScreenGLWrapper.camera2dProgram);
                 offScreenGLWrapper.cam2dPositionLocation = GLES20.glGetAttribLocation(offScreenGLWrapper.camera2dProgram, "aPosition");
                 offScreenGLWrapper.cam2dTextureCoordsLocation = GLES20.glGetAttribLocation(offScreenGLWrapper.camera2dProgram, "aTextureCoord");
                 offScreenGLWrapper.cam2dTextureLocation = GLES20.glGetUniformLocation(offScreenGLWrapper.camera2dProgram, "uTexture");
                 offScreenGLWrapper.cam2dTextureMatrixLocation = GLES20.glGetUniformLocation(offScreenGLWrapper.camera2dProgram, "uTextureMatrix");
+                // view 2d
+//                offScreenGLWrapper.view2dProgram = GLHelper.createView2DProgram();
+//                GLES20.glUseProgram(offScreenGLWrapper.view2dProgram);
+//                offScreenGLWrapper.view2dPositionLocation = GLES20.glGetAttribLocation(offScreenGLWrapper.view2dProgram, "aPosition");
+//                offScreenGLWrapper.view2dTextureCoordsLocation = GLES20.glGetAttribLocation(offScreenGLWrapper.view2dProgram, "aTextureCoord");
+//                offScreenGLWrapper.view2dTextureLocation = GLES20.glGetUniformLocation(offScreenGLWrapper.view2dProgram, "uTexture");
+//                offScreenGLWrapper.view2dTextureMatrixLocation = GLES20.glGetUniformLocation(offScreenGLWrapper.view2dProgram, "uTextureMatrix");
 
                 int[] fb = new int[1];
                 int[] fbTexture = new int[1];

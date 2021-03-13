@@ -18,6 +18,12 @@ public class OffScreenGLWrapper {
     public int cam2dPositionLocation;
     public int cam2dTextureCoordsLocation;
 
+    public int view2dProgram;
+    public int view2dTextureMatrixLocation;
+    public int view2dTextureLocation;
+    public int view2dPositionLocation;
+    public int view2dTextureCoordsLocation;
+
     public int cameraProgram;
     public int camTextureLocation;
     public int camPositionLocation;

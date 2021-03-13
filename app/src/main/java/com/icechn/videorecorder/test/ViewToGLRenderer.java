@@ -1,7 +1,10 @@
 package com.icechn.videorecorder.test;
 
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.SurfaceTexture;
+import android.opengl.EGL14;
+import android.opengl.EGLContext;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
@@ -13,6 +16,8 @@ import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 /**
+ * 获取当前 EGLContext EGL14.eglGetCurrentContext()
+ *
  * Created by user on 3/12/15.
  */
 public class ViewToGLRenderer implements GLSurfaceView.Renderer {
@@ -22,22 +27,22 @@ public class ViewToGLRenderer implements GLSurfaceView.Renderer {
     private static final int DEFAULT_TEXTURE_WIDTH = 500;
     private static final int DEFAULT_TEXTURE_HEIGHT = 500;
 
+    private int mGlSurfaceTexture;
     private SurfaceTexture mSurfaceTexture;
     private Surface mSurface;
-
-    private int mGlSurfaceTexture;
     private Canvas mSurfaceCanvas;
+    private EGLContext mEGLContext;
 
     private int mTextureWidth = DEFAULT_TEXTURE_WIDTH;
     private int mTextureHeight = DEFAULT_TEXTURE_HEIGHT;
 
+    private ISurface mISurface;
+
 
     @Override
-    public void onDrawFrame(GL10 gl) {
-        synchronized (this) {
-            // update texture
-            mSurfaceTexture.updateTexImage();
-        }
+    public void onSurfaceCreated(GL10 gl, EGLConfig config) {
+        final String extensions = GLES20.glGetString(GLES20.GL_EXTENSIONS);
+        Log.d(TAG, extensions);
     }
 
     @Override
@@ -48,10 +53,26 @@ public class ViewToGLRenderer implements GLSurfaceView.Renderer {
             //attach the texture to a surface.
             //It's a clue class for rendering an android view to gl level
             mSurfaceTexture = new SurfaceTexture(mGlSurfaceTexture);
-            mSurfaceTexture.setDefaultBufferSize(mTextureWidth, mTextureHeight);
+            mSurfaceTexture.setDefaultBufferSize(width, height);
             mSurface = new Surface(mSurfaceTexture);
+            Canvas canvas = mSurface.lockCanvas(null);
+            if (canvas != null) {
+                canvas.drawColor(Color.TRANSPARENT);
+                mSurface.unlockCanvasAndPost(canvas);
+            }
+            mEGLContext = EGL14.eglGetCurrentContext();
+            if (mISurface != null) {
+                mISurface.onSurfaceTextureCreated();
+            }
         }
+    }
 
+    @Override
+    public void onDrawFrame(GL10 gl) {
+        synchronized (this) {
+            // update texture
+            mSurfaceTexture.updateTexImage();
+        }
     }
 
     public void releaseSurface() {
@@ -63,13 +84,6 @@ public class ViewToGLRenderer implements GLSurfaceView.Renderer {
         }
         mSurface = null;
         mSurfaceTexture = null;
-
-    }
-
-    @Override
-    public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-        final String extensions = GLES20.glGetString(GLES20.GL_EXTENSIONS);
-        Log.d(TAG, extensions);
     }
 
 
@@ -80,10 +94,8 @@ public class ViewToGLRenderer implements GLSurfaceView.Renderer {
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glGenTextures(1, textures, 0);
         checkGlError("Texture generate");
-
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textures[0]);
         checkGlError("Texture bind");
-
         GLES20.glTexParameterf(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_LINEAR);
         GLES20.glTexParameterf(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_LINEAR);
         GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GL10.GL_TEXTURE_WRAP_S, GL10.GL_CLAMP_TO_EDGE);
@@ -98,6 +110,10 @@ public class ViewToGLRenderer implements GLSurfaceView.Renderer {
 
     public SurfaceTexture getGLSurfaceTexture() {
         return mSurfaceTexture;
+    }
+
+    public EGLContext getEGLContext() {
+        return mEGLContext;
     }
 
     public Canvas onDrawViewBegin() {
@@ -143,4 +159,12 @@ public class ViewToGLRenderer implements GLSurfaceView.Renderer {
     public void setTextureHeight(int textureHeight) {
         mTextureHeight = textureHeight;
     }
+
+    public void setISurface(ISurface iSurface) {
+        mISurface = iSurface;
+    }
+    public interface ISurface {
+        void onSurfaceTextureCreated();
+    }
+
 }
