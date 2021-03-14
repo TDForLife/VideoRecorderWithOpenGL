@@ -70,10 +70,10 @@ public class HardVideoGroupFilter extends BaseHardVideoFilter {
     }
 
     @Override
-    public void onDirectionUpdate(int _directionFlag) {
-        super.onDirectionUpdate(_directionFlag);
+    public void onDirectionUpdate(int flag) {
+        super.onDirectionUpdate(flag);
         for (FilterWrapper wrapper : filterWrappers) {
-            wrapper.filter.onDirectionUpdate(_directionFlag);
+            wrapper.filter.onDirectionUpdate(flag);
         }
     }
 

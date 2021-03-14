@@ -5,7 +5,8 @@ import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.opengl.GLES20;
-import android.support.annotation.IntegerRes;
+
+import androidx.annotation.IntegerRes;
 
 import com.icechn.videorecorder.tools.BitmapUtils;
 import com.icechn.videorecorder.tools.GLESTools;
@@ -58,6 +59,11 @@ public class ImageTexture {
             bitmap.recycle();
         }
         return this;
+    }
+
+    public void updateTextureBitmap(Bitmap bitmap) {
+        GLESTools.loadTexture(bitmap, imageTextureId);
+        bitmap.recycle();
     }
 
     public int getImageTextureId() {

@@ -49,8 +49,8 @@ public class GPUImageCompatibleFilter<T extends GPUImageFilter> extends BaseHard
     }
 
     @Override
-    public void onDirectionUpdate(int _directionFlag) {
-        if (directionFlag != _directionFlag) {
+    public void onDirectionUpdate(int flag) {
+        if (directionFlag != flag) {
             innerShapeBuffer = getGPUImageCompatShapeVerticesBuffer();
             innerTextureBuffer = getGPUImageCompatTextureVerticesBuffer(directionFlag);
         }

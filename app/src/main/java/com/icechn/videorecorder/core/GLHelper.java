@@ -315,12 +315,6 @@ public class GLHelper {
         }
     }
 
-    public static void makeCurrentForView(MediaCodecGLWrapper wrapper) {
-        if (!EGL14.eglMakeCurrent(wrapper.eglDisplay, wrapper.eglSurface, wrapper.eglSurface, wrapper.eglViewContext)) {
-            throw new RuntimeException("makeCurrent media codec context failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));
-        }
-    }
-
     public static void makeCurrent(ScreenGLWrapper wrapper) {
         if (!EGL14.eglMakeCurrent(wrapper.eglDisplay, wrapper.eglSurface, wrapper.eglSurface, wrapper.eglContext)) {
             throw new RuntimeException("makeCurrent screen context failed : " + GLUtils.getEGLErrorString(EGL14.eglGetError()));

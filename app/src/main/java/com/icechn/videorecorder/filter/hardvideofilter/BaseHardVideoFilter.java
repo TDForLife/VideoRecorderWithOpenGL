@@ -40,8 +40,8 @@ public class BaseHardVideoFilter {
 
     public void onDestroy() {}
 
-    public void onDirectionUpdate(int _directionFlag) {
-        this.directionFlag = _directionFlag;
+    public void onDirectionUpdate(int flag) {
+        this.directionFlag = flag;
     }
 
     public void updatePreviewSize(int width, int height) {

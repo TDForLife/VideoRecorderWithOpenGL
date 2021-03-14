@@ -1,8 +1,10 @@
 package com.icechn.videorecorder.ui;
 
+import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
+import android.app.Activity;
 import android.content.res.Configuration;
-import android.graphics.PixelFormat;
+import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
@@ -10,34 +12,33 @@ import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
-import android.support.v7.app.AppCompatActivity;
+import android.os.Message;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ImageView;
-import android.widget.TextView;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import com.icechn.videorecorder.R;
 import com.icechn.videorecorder.client.RecorderClient;
 import com.icechn.videorecorder.core.listener.IVideoChange;
+import com.icechn.videorecorder.filter.image.AnimImageFilter;
 import com.icechn.videorecorder.filter.image.DrawMultiImageFilter;
 import com.icechn.videorecorder.filter.image.DrawMultiImageFilter.ImageDrawData;
 import com.icechn.videorecorder.filter.softaudiofilter.SetVolumeAudioFilter;
 import com.icechn.videorecorder.model.MediaConfig;
 import com.icechn.videorecorder.model.RecordConfig;
 import com.icechn.videorecorder.model.Size;
-import com.icechn.videorecorder.test.NormalGLRenderer;
 import com.icechn.videorecorder.test.ViewToGLRenderer;
 import com.icechn.videorecorder.tools.DensityUtil;
-import com.icechn.videorecorder.test.GLLinearLayout;
 
 import java.util.ArrayList;
+import java.util.List;
 
 
-public class RecordingActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener, View.OnClickListener, IVideoChange {
+public class RecordingActivity extends Activity implements TextureView.SurfaceTextureListener, View.OnClickListener, IVideoChange {
 
     public static final String TAG = "main";
     public static final String IS_SQUARE = "is_square";
@@ -51,7 +52,8 @@ public class RecordingActivity extends AppCompatActivity implements TextureView.
     private GLSurfaceView mGLSurfaceView;
     private AspectTextureView mTextureView;
     private Button startRecordButton;
-    private GLLinearLayout mGLLinearLayout;
+    private LinearLayout mAnimLayout;
+    private View mAnimIconView;
 
     // Config
     private boolean mStarted;
@@ -59,26 +61,22 @@ public class RecordingActivity extends AppCompatActivity implements TextureView.
     private String mSaveVideoPath;
     private RecordConfig mRecordConfig;
 
+    private int mScreenWidth;
+    private int mScreenHeight;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         mIsSquare = getIntent().getBooleanExtra(IS_SQUARE, false);
         mSaveVideoPath = Environment.getExternalStorageDirectory().getPath() + "/live_save_video" + System.currentTimeMillis() + ".mp4";
         mStarted = false;
+        printScreenDisplayInfo();
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_streaming);
 
-        mGLLinearLayout = findViewById(R.id.gl_layout);
-
-        mGLSurfaceView = findViewById(R.id.preview_view_gl_sv);
-        mGLSurfaceView.setEGLContextClientVersion(2);
-        mGLSurfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 0);
-        mGLSurfaceView.getHolder().setFormat(PixelFormat.TRANSLUCENT);
-        mGLSurfaceView.setZOrderOnTop(true);
-        mViewToGLRender = new NormalGLRenderer(this);
-        mGLSurfaceView.setRenderer(mViewToGLRender);
-        mGLLinearLayout.setViewToGLRenderer(mViewToGLRender);
-
+        mAnimLayout = findViewById(R.id.gl_layout);
+        mAnimIconView = findViewById(R.id.gl_icon_view);
 
         mTextureView = findViewById(R.id.preview_texture_view);
         mTextureView.setKeepScreenOn(true);
@@ -92,41 +90,7 @@ public class RecordingActivity extends AppCompatActivity implements TextureView.
         findViewById(R.id.btn_flash).setOnClickListener(this);
 
         prepareStreamingClient();
-        printScreenDisplayInfo();
-        initGLRenderView();
-    }
-
-    private void initGLRenderView() {
-        // mGLLinearLayout.setViewViewChannel(mRecorderClient.getViewChannel());
-        activeGLRender();
-    }
-
-    private void activeGLRender() {
-        final GLLinearLayout layout = findViewById(R.id.gl_layout);
-        final TextView textView = findViewById(R.id.gl_text_view);
-        final ImageView iconView = findViewById(R.id.gl_icon_view);
-
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                layout.invalidate();
-            }
-        }, 3000);
-
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                startPopsAnimTrans(textView);
-            }
-        }, 4000);
-
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                startPopsAnimTrans(iconView);
-                textView.setText("NiuBi");
-            }
-        }, 5000);
+        onSetFilters();
     }
 
     @Override
@@ -235,8 +199,22 @@ public class RecordingActivity extends AppCompatActivity implements TextureView.
         bottom = top + DensityUtil.dip2px(this, 25 * 2);
         data2.rect = new Rect(left, top, right, bottom);
         imageDrawDataList.add(data2);
+        DrawMultiImageFilter drawMultiImageFilter = new DrawMultiImageFilter(this, imageDrawDataList);
 
-        mRecorderClient.setHardVideoFilter(new DrawMultiImageFilter(this, imageDrawDataList));
+        mAnimLayout.post(new Runnable() {
+            @Override
+            public void run() {
+                Log.d("zwt", "height - " + mAnimLayout.getHeight());
+                AnimImageFilter.ImageAnimationData animationData = new AnimImageFilter.ImageAnimationData();
+                int animLeft = 0;
+                int animTop = 0;
+                int animRight = mScreenWidth;
+                int animBottom = animTop + mAnimLayout.getHeight();
+                animationData.rect = new Rect(animLeft, animTop, animRight, animBottom);
+                AnimImageFilter animImageFilter = new AnimImageFilter(RecordingActivity.this, mAnimLayout, mAnimIconView, animationData);
+                mRecorderClient.setHardVideoFilter(animImageFilter);
+            }
+        });
     }
 
     @Override
@@ -299,17 +277,46 @@ public class RecordingActivity extends AppCompatActivity implements TextureView.
 
     private void printScreenDisplayInfo() {
         DisplayMetrics metrics = getResources().getDisplayMetrics();
-        int screenWidth = metrics.widthPixels;
-        int screenHeight = metrics.heightPixels;
+        mScreenWidth = metrics.widthPixels;
+        mScreenHeight = metrics.heightPixels;
         int screenDensity = metrics.densityDpi;
-        Log.d(TAG, "Screen info : size - " + screenWidth + " x " + screenHeight + " and density - " + screenDensity);
+        Log.d(TAG, "Screen info : size - " + mScreenWidth + " x " + mScreenHeight + " and density - " + screenDensity);
     }
+
+    private static final int ANIMATION_DURATION = 1000;
+    private List<Bitmap> mBitmapList = new ArrayList<>();
+    private int mCount = 0;
+
+    private Handler mHandler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            if (mCount > ANIMATION_DURATION / 16.7f * 2) {
+                return;
+            }
+            Bitmap bitmap = getViewsScreenShot(mAnimLayout);
+            mBitmapList.add(bitmap);
+            mCount++;
+            mHandler.sendEmptyMessageDelayed(0, 17);
+        }
+    };
+
 
     // 属性动画-平移
     private void startPopsAnimTrans(final View view) {
-        float[] x = {260f};
+        float[] x = {460f};
+        AnimatorSet animatorSet = new AnimatorSet();
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(view, "scaleX", 0.1f, 1f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(view, "scaleY", 0.1f, 1f);
         ObjectAnimator objectAnimatorX = ObjectAnimator.ofFloat(view, "translationX", x);
-        objectAnimatorX.setDuration(1000);
-        objectAnimatorX.start();
+        animatorSet.playTogether(scaleX, scaleY, objectAnimatorX);
+        animatorSet.setDuration(ANIMATION_DURATION);
+        animatorSet.start();
+    }
+
+    public static Bitmap getViewsScreenShot(View view) {
+        Bitmap bitmap = view.getDrawingCache();
+        Bitmap emptyBitmap = Bitmap.createBitmap(bitmap);
+        view.destroyDrawingCache();
+        return emptyBitmap;
     }
 }

@@ -470,25 +470,6 @@ public class VideoCore implements IVideoCore {
             GLES20.glFinish();
             GLHelper.disableVertex(offScreenGLWrapper.cam2dPositionLocation, offScreenGLWrapper.cam2dTextureCoordsLocation);
 
-//            // 绘制 View
-//            if (viewTexture != null) {
-//                GLES20.glUseProgram(offScreenGLWrapper.view2dProgram);
-//                GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
-//                GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, viewTextureId);
-//                GLES20.glUniform1i(offScreenGLWrapper.view2dTextureLocation, 1);
-//                synchronized (syncCameraBufferObj) {
-//                    GLHelper.enableVertex(offScreenGLWrapper.view2dPositionLocation, offScreenGLWrapper.view2dTextureCoordsLocation,
-//                            shapeVerticesBuffer, camera2dTextureVerticesBuffer);
-//                }
-//                float[] viewTextureMatrix = new float[16];
-//                viewTexture.getTransformMatrix(viewTextureMatrix);
-//                GLES20.glUniformMatrix4fv(offScreenGLWrapper.view2dTextureMatrixLocation, 1, false, viewTextureMatrix, 0);
-//                GLES20.glViewport(0, 0, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
-//                doGLDraw();
-//                GLES20.glFinish();
-//                GLHelper.disableVertex(offScreenGLWrapper.view2dPositionLocation, offScreenGLWrapper.view2dTextureCoordsLocation);
-//            }
-
             GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0);
             // 卸载当前执行的 Program
             GLES20.glUseProgram(0);
@@ -508,7 +489,6 @@ public class VideoCore implements IVideoCore {
             }
             GLES20.glViewport(0, 0, mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
             doGLDraw();
-            GLES20.glFinish();
             GLHelper.disableVertex(offScreenGLWrapper.camPositionLocation, offScreenGLWrapper.camTextureCoordsLocation);
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
             GLES20.glUseProgram(0);
@@ -555,7 +535,6 @@ public class VideoCore implements IVideoCore {
                 GLHelper.enableVertex(mediaCodecGLWrapper.drawPositionLoc, mediaCodecGLWrapper.drawTextureCoordLoc,
                         shapeVerticesBuffer, mediaCodecTextureVerticesBuffer);
                 doGLDraw();
-                GLES20.glFinish();
                 GLHelper.disableVertex(mediaCodecGLWrapper.drawPositionLoc, mediaCodecGLWrapper.drawTextureCoordLoc);
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
                 GLES20.glUseProgram(0);
@@ -577,7 +556,6 @@ public class VideoCore implements IVideoCore {
                         shapeVerticesBuffer, screenTextureVerticesBuffer);
                 GLES20.glViewport(0, 0, screenSize.getWidth(), screenSize.getHeight());
                 doGLDraw();
-                GLES20.glFinish();
                 GLHelper.disableVertex(previewScreenGLWrapper.drawPositionLoc, previewScreenGLWrapper.drawTextureCoordLoc);
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
                 GLES20.glUseProgram(0);
@@ -626,13 +604,6 @@ public class VideoCore implements IVideoCore {
                 offScreenGLWrapper.cam2dTextureCoordsLocation = GLES20.glGetAttribLocation(offScreenGLWrapper.camera2dProgram, "aTextureCoord");
                 offScreenGLWrapper.cam2dTextureLocation = GLES20.glGetUniformLocation(offScreenGLWrapper.camera2dProgram, "uTexture");
                 offScreenGLWrapper.cam2dTextureMatrixLocation = GLES20.glGetUniformLocation(offScreenGLWrapper.camera2dProgram, "uTextureMatrix");
-                // view 2d
-//                offScreenGLWrapper.view2dProgram = GLHelper.createView2DProgram();
-//                GLES20.glUseProgram(offScreenGLWrapper.view2dProgram);
-//                offScreenGLWrapper.view2dPositionLocation = GLES20.glGetAttribLocation(offScreenGLWrapper.view2dProgram, "aPosition");
-//                offScreenGLWrapper.view2dTextureCoordsLocation = GLES20.glGetAttribLocation(offScreenGLWrapper.view2dProgram, "aTextureCoord");
-//                offScreenGLWrapper.view2dTextureLocation = GLES20.glGetUniformLocation(offScreenGLWrapper.view2dProgram, "uTexture");
-//                offScreenGLWrapper.view2dTextureMatrixLocation = GLES20.glGetUniformLocation(offScreenGLWrapper.view2dProgram, "uTextureMatrix");
 
                 int[] fb = new int[1];
                 int[] fbTexture = new int[1];
