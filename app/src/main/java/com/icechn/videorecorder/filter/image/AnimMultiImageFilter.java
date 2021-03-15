@@ -13,34 +13,36 @@ import com.icechn.videorecorder.filter.hardvideofilter.BaseHardVideoFilter;
 import com.icechn.videorecorder.tools.GLESTools;
 
 import java.nio.FloatBuffer;
+import java.util.ArrayList;
 
-/**
- * Created by ICE on 2017/10/12.
- */
-
-public class AnimImageFilter extends BaseHardVideoFilter {
+public class AnimMultiImageFilter extends BaseHardVideoFilter {
 
     private static final String TAG = "anim";
 
-    private int glProgram;
-    private int glCamTextureLoc;
-    private int glCamPositionLoc;
-    private int glCamTextureCoordLoc;
-    private int glImageTextureLoc;
-    private int glImageRectLoc;
-    private int glImageAngelLoc;
+    protected int glProgram;
+    protected int glCamTextureLoc;
+    protected int glCamPositionLoc;
+    protected int glCamTextureCoordLoc;
+    protected int glImageTextureLoc;
+    protected int glImageRectLoc;
+    protected int glImageAngelLoc;
 
-    private Context mContext;
-    private View mAreaView;
-    private ImageAnimationData mAnimationData;
-    private ImageTexture mImageTexture;
+    protected Context mContext;
+    private final ArrayList<View> mAreaViewList = new ArrayList<>();
+    private final ArrayList<ImageAnimationData> mImageAnimInfoList = new ArrayList<>();
+    private final ArrayList<ImageTexture> mImageTextureList = new ArrayList<>();
 
-    public AnimImageFilter(Context context, View areaView, ImageAnimationData animationData) {
+    public AnimMultiImageFilter(Context context, ArrayList<View> areaViewList, ArrayList<ImageAnimationData> imageInfoList) {
         super();
         mContext = context;
-        mAreaView = areaView;
-        mAnimationData = animationData;
-        mAreaView.setDrawingCacheEnabled(true);
+        if (imageInfoList == null || imageInfoList.size() == 0) {
+            throw new RuntimeException("DrawMultiImageFilter's imageInfoList must not be empty");
+        }
+        for (View areaView : areaViewList) {
+            areaView.setDrawingCacheEnabled(true);
+        }
+        this.mAreaViewList.addAll(areaViewList);
+        this.mImageAnimInfoList.addAll(imageInfoList);
     }
 
     @Override
@@ -63,10 +65,14 @@ public class AnimImageFilter extends BaseHardVideoFilter {
     }
 
     protected void initImageTexture() {
-        Bitmap initBitmap = getViewCacheBitmap(mAreaView);
-        if (initBitmap != null) {
-            mImageTexture = new ImageTexture(outVideoWidth, outVideoHeight);
-            mImageTexture.loadFromBitmap(initBitmap);
+        mImageTextureList.clear();
+        for (int i = 0; i < mImageAnimInfoList.size(); i++) {
+            Bitmap initBitmap = getViewCacheBitmap(mAreaViewList.get(i));
+            if (initBitmap != null) {
+                ImageTexture imageTexture = new ImageTexture(outVideoWidth, outVideoHeight);
+                imageTexture.loadFromBitmap(initBitmap);
+                mImageTextureList.add(imageTexture);
+            }
         }
     }
 
@@ -76,27 +82,49 @@ public class AnimImageFilter extends BaseHardVideoFilter {
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
 
-        Rect rect = mAnimationData.rect;
-        if (rect.left == rect.right || rect.top == rect.bottom) {
-            return;
-        }
+        int backgroundTextureId;
+        int frameBuffer;
+        ImageTexture preImageTexture = null;
 
-        Bitmap bitmap = getViewCacheBitmap(mAreaView);
-        if (bitmap != null) {
-            if (mImageTexture == null) {
-                mImageTexture = new ImageTexture(outVideoWidth, outVideoHeight);
-                mImageTexture.loadFromBitmap(bitmap);
-            } else {
-                mImageTexture.updateTextureBitmap(bitmap);
+        int size = mImageAnimInfoList.size();
+        for (int i = 0; i < size; i++) {
+
+            View areaView = mAreaViewList.get(i);
+            ImageAnimationData imageDrawInfo = mImageAnimInfoList.get(i);
+            ImageTexture imageTexture = mImageTextureList.get(i);
+
+            Rect rect = imageDrawInfo.rect;
+            if (rect.left == rect.right || rect.top == rect.bottom) {
+                continue;
             }
-        }
 
-        if (mImageTexture != null) {
-            drawImage(mImageTexture.convertToRectF(rect), mImageTexture.getImageTextureId(),
-                    cameraTexture, targetFrameBuffer,
+            Bitmap bitmap = getViewCacheBitmap(areaView);
+            if (bitmap != null) {
+                if (imageTexture == null) {
+                    imageTexture = new ImageTexture(outVideoWidth, outVideoHeight);
+                    imageTexture.loadFromBitmap(bitmap);
+                } else {
+                    imageTexture.updateTextureBitmap(bitmap);
+                }
+            }
+
+            if (preImageTexture == null) {
+                backgroundTextureId = cameraTexture;
+            } else {
+                backgroundTextureId = preImageTexture.getFrameBufferTextureId();
+            }
+            if (i == size - 1) {
+                frameBuffer = targetFrameBuffer;
+            } else {
+                frameBuffer = imageTexture.getFrameBuffer();
+            }
+
+            drawImage(imageTexture.convertToRectF(rect), imageTexture.getImageTextureId(),
+                    backgroundTextureId, frameBuffer,
                     shapeVerticesBuffer, textureVerticesBuffer);
-        }
 
+            preImageTexture = mImageTextureList.get(i);
+        }
     }
 
     protected void drawImage(RectF rectF, int imageTextureId,
@@ -136,8 +164,8 @@ public class AnimImageFilter extends BaseHardVideoFilter {
     }
 
     protected void destroyImageTexture() {
-        if (mImageTexture != null) {
-            mImageTexture.destroy();
+        for (ImageTexture imageTexture : mImageTextureList) {
+            imageTexture.destroy();
         }
     }
 

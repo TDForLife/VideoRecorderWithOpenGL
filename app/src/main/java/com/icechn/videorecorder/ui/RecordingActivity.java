@@ -9,7 +9,6 @@ import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.media.MediaScannerConnection;
-import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -28,15 +27,16 @@ import com.icechn.videorecorder.client.RecorderClient;
 import com.icechn.videorecorder.core.listener.IVideoChange;
 import com.icechn.videorecorder.filter.hardvideofilter.BaseHardVideoFilter;
 import com.icechn.videorecorder.filter.image.AnimImageFilter;
+import com.icechn.videorecorder.filter.image.AnimMultiImageFilter;
 import com.icechn.videorecorder.filter.image.DrawMultiImageFilter;
 import com.icechn.videorecorder.filter.image.DrawMultiImageFilter.ImageDrawData;
+import com.icechn.videorecorder.filter.image.ImageAnimationData;
 import com.icechn.videorecorder.filter.softaudiofilter.SetVolumeAudioFilter;
 import com.icechn.videorecorder.model.MediaConfig;
 import com.icechn.videorecorder.model.RecordConfig;
 import com.icechn.videorecorder.model.Size;
 import com.icechn.videorecorder.test.CareLinearLayoutManager;
 import com.icechn.videorecorder.test.MyRecyclerAdapter;
-import com.icechn.videorecorder.test.ViewToGLRenderer;
 import com.icechn.videorecorder.tools.DensityUtil;
 
 import java.util.ArrayList;
@@ -51,15 +51,16 @@ public class RecordingActivity extends Activity implements TextureView.SurfaceTe
     // Object
     private Handler mMainHandler;
     private RecorderClient mRecorderClient;
-    private ViewToGLRenderer mViewToGLRender;
 
     // View
-    private GLSurfaceView mGLSurfaceView;
     private AspectTextureView mTextureView;
     private Button startRecordButton;
-    private View mAnimAreaLayout;
-    private View mAnimTargetView;
-    private MyRecyclerAdapter mAdapter;
+    private View mAnimAreaTranslateLayout;
+    private View mAnimTargetTranslateView;
+    private View mAnimAreaRecyclerLayout;
+    private View mAnimTargetRecyclerView;
+    private ArrayList<View> mAnimAreaLayoutList = new ArrayList<>();
+    private ArrayList<View> mAnimTargetViewLIst = new ArrayList<>();
 
     // Config
     private boolean mStarted;
@@ -92,7 +93,9 @@ public class RecordingActivity extends Activity implements TextureView.SurfaceTe
         findViewById(R.id.btn_swap).setOnClickListener(this);
         findViewById(R.id.btn_flash).setOnClickListener(this);
 
+        prepareTranslateViewAnimation();
         prepareRecyclerViewAnimation();
+        prepareMultiViewAnimation();
         prepareStreamingClient();
     }
 
@@ -121,17 +124,28 @@ public class RecordingActivity extends Activity implements TextureView.SurfaceTe
     }
 
     private void prepareRecyclerViewAnimation() {
-        mAnimAreaLayout = findViewById(R.id.test_layout);
-        mAnimTargetView = findViewById(R.id.test_anim_rv);
+        mAnimAreaRecyclerLayout = findViewById(R.id.test_anim_recycler_layout);
+        mAnimTargetRecyclerView = findViewById(R.id.test_anim_rv);
         ArrayList<String> dataList = new ArrayList<>();
         dataList.add("Android 1");
         dataList.add("Android 2");
         dataList.add("Android 3");
         dataList.add("Android 4");
-        ((RecyclerView) mAnimTargetView).setLayoutManager(new CareLinearLayoutManager(this, CareLinearLayoutManager.HORIZONTAL, false));
-        mAdapter = new MyRecyclerAdapter(this, dataList);
-        ((RecyclerView) mAnimTargetView).setAdapter(mAdapter);
-        mAnimAreaLayout.setVisibility(View.INVISIBLE);
+        ((RecyclerView) mAnimTargetRecyclerView).setLayoutManager(new CareLinearLayoutManager(this, CareLinearLayoutManager.HORIZONTAL, false));
+        MyRecyclerAdapter adapter = new MyRecyclerAdapter(this, dataList);
+        ((RecyclerView) mAnimTargetRecyclerView).setAdapter(adapter);
+        mAnimAreaRecyclerLayout.setVisibility(View.INVISIBLE);
+    }
+
+    private void prepareTranslateViewAnimation() {
+        mAnimAreaTranslateLayout = findViewById(R.id.test_anim_translate_layout);
+        mAnimTargetTranslateView = findViewById(R.id.test_anim_icon_iv);
+        mAnimAreaTranslateLayout.setVisibility(View.INVISIBLE);
+    }
+
+    private void prepareMultiViewAnimation() {
+        mAnimAreaLayoutList.add(mAnimAreaTranslateLayout);
+        mAnimAreaLayoutList.add(mAnimAreaRecyclerLayout);
     }
 
     private void prepareStreamingClient() {
@@ -220,22 +234,49 @@ public class RecordingActivity extends Activity implements TextureView.SurfaceTe
     }
 
     protected void onSetAnimationFilters() {
-        mAnimAreaLayout.post(new Runnable() {
+        mAnimAreaRecyclerLayout.post(new Runnable() {
             @Override
             public void run() {
                 if (mAnimationFilter != null) {
                     mAnimationFilter.onDestroy();
                 }
-                AnimImageFilter.ImageAnimationData animationData = new AnimImageFilter.ImageAnimationData();
-                int animLeft = mAnimAreaLayout.getLeft();
-                int animTop = mAnimAreaLayout.getTop();
-                int animRight = animLeft + mAnimAreaLayout.getWidth();
-                int animBottom = animTop + mAnimAreaLayout.getHeight();
-                animationData.rect = new Rect(animLeft, animTop, animRight, animBottom);
-                mAnimationFilter = new AnimImageFilter(RecordingActivity.this, mAnimAreaLayout, mAnimTargetView, animationData);
+                // mAnimationFilter = getSingleAnimImageFilter(mAnimAreaRecyclerLayout);
+                mAnimationFilter = getMultiAnimImageFilter();
                 mRecorderClient.setHardVideoFilter(mAnimationFilter);
             }
         });
+    }
+
+    private AnimImageFilter getSingleAnimImageFilter(View areaLayout) {
+        ImageAnimationData animationData = new ImageAnimationData();
+        int animLeft = areaLayout.getLeft();
+        int animTop = areaLayout.getTop();
+        int animRight = animLeft + areaLayout.getWidth();
+        int animBottom = animTop + areaLayout.getHeight();
+        animationData.rect = new Rect(animLeft, animTop, animRight, animBottom);
+        return new AnimImageFilter(RecordingActivity.this, areaLayout, animationData);
+    }
+
+    private AnimMultiImageFilter getMultiAnimImageFilter() {
+        ImageAnimationData animTranslateData = new ImageAnimationData();
+        int animLeft = mAnimAreaTranslateLayout.getLeft();
+        int animTop = mAnimAreaTranslateLayout.getTop();
+        int animRight = animLeft + mAnimAreaTranslateLayout.getWidth();
+        int animBottom = animTop + mAnimAreaTranslateLayout.getHeight();
+        animTranslateData.rect = new Rect(animLeft, animTop, animRight, animBottom);
+
+        ImageAnimationData animRecyclerData = new ImageAnimationData();
+        int animLeft1 = mAnimAreaRecyclerLayout.getLeft();
+        int animTop1 = mAnimAreaRecyclerLayout.getTop();
+        int animRight1 = animLeft1 + mAnimAreaRecyclerLayout.getWidth();
+        int animBottom1 = animTop1 + mAnimAreaRecyclerLayout.getHeight();
+        animRecyclerData.rect = new Rect(animLeft1, animTop1, animRight1, animBottom1);
+
+        ArrayList<ImageAnimationData> dataArrayList = new ArrayList<>();
+        dataArrayList.add(animTranslateData);
+        dataArrayList.add(animRecyclerData);
+
+        return new AnimMultiImageFilter(RecordingActivity.this, mAnimAreaLayoutList, dataArrayList);
     }
 
     private void onDestroyAnimationFilters() {
@@ -289,7 +330,7 @@ public class RecordingActivity extends Activity implements TextureView.SurfaceTe
                     mMainHandler.postDelayed(new Runnable() {
                         @Override
                         public void run() {
-                            startAnimation();
+                            startMultiAnimation();
                         }
                     }, 1000);
                 } else {
@@ -334,12 +375,17 @@ public class RecordingActivity extends Activity implements TextureView.SurfaceTe
 
     private static final int ANIMATION_DURATION = 1500;
 
-    private void startAnimation() {
-        if (mAnimTargetView instanceof RecyclerView) {
-            startRecyclerViewAnimation((RecyclerView) mAnimTargetView);
+    private void startSingleAnimation() {
+        if (mAnimTargetRecyclerView instanceof RecyclerView) {
+            startRecyclerViewAnimation((RecyclerView) mAnimTargetRecyclerView);
         } else {
-            startTranslationAnimTrans(mAnimTargetView);
+            startTranslationAnimTrans(mAnimTargetTranslateView);
         }
+    }
+
+    private void startMultiAnimation() {
+        startTranslationAnimTrans(mAnimTargetTranslateView);
+        startRecyclerViewAnimation((RecyclerView) mAnimTargetRecyclerView);
     }
 
     // 属性动画-平移
@@ -375,7 +421,7 @@ public class RecordingActivity extends Activity implements TextureView.SurfaceTe
             if (mCount > ANIMATION_DURATION / 16.7f * 2) {
                 return;
             }
-            Bitmap bitmap = getViewsScreenShot(mAnimAreaLayout);
+            Bitmap bitmap = getViewsScreenShot(mAnimAreaRecyclerLayout);
             mBitmapList.add(bitmap);
             mCount++;
             mHandler.sendEmptyMessageDelayed(0, 17);

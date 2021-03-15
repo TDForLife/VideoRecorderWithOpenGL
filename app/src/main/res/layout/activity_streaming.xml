@@ -65,8 +65,26 @@
 
     </LinearLayout>
 
+    <!-- 1. 验证平移 -->
     <FrameLayout
-        android:id="@+id/test_layout"
+        android:id="@+id/test_anim_translate_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/test_anim_icon_iv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_launcher" />
+
+    </FrameLayout>
+
+    <!-- 2. 验证列表滚动 -->
+    <FrameLayout
+        android:id="@+id/test_anim_recycler_layout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
@@ -74,25 +92,13 @@
         android:background="@drawable/ai_im_creation_broad"
         android:visibility="gone">
 
-        <!-- 1. 验证平移 -->
-        <LinearLayout
-            android:id="@+id/test_anim_view"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:orientation="vertical"
-            android:visibility="gone">
-        </LinearLayout>
-
-        <!-- 2. 验证列表滚动 -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/test_anim_rv"
             android:layout_width="280dp"
-            android:layout_gravity="center"
             android:layout_height="wrap_content"
+            android:layout_gravity="center"
             android:focusableInTouchMode="false" />
     </FrameLayout>
-
 
 </RelativeLayout>
 
