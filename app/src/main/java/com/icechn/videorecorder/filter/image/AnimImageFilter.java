@@ -1,19 +1,13 @@
 package com.icechn.videorecorder.filter.image;
 
-import android.animation.AnimatorSet;
-import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
-import android.os.Handler;
 import android.util.Log;
 import android.view.View;
-
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import com.icechn.videorecorder.filter.hardvideofilter.BaseHardVideoFilter;
 import com.icechn.videorecorder.tools.GLESTools;

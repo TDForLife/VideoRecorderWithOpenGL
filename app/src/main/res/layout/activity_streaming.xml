@@ -74,6 +74,7 @@
         android:background="@drawable/ai_im_creation_broad"
         android:visibility="gone">
 
+        <!-- 1. 验证平移 -->
         <LinearLayout
             android:id="@+id/test_anim_view"
             android:layout_width="wrap_content"
@@ -83,6 +84,7 @@
             android:visibility="gone">
         </LinearLayout>
 
+        <!-- 2. 验证列表滚动 -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/test_anim_rv"
             android:layout_width="280dp"
