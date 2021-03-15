@@ -8,8 +8,12 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
+import android.os.Handler;
 import android.util.Log;
 import android.view.View;
+
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.icechn.videorecorder.filter.hardvideofilter.BaseHardVideoFilter;
 import com.icechn.videorecorder.tools.GLESTools;
@@ -74,7 +78,11 @@ public class AnimImageFilter extends BaseHardVideoFilter {
         mAnimationView.postDelayed(new Runnable() {
             @Override
             public void run() {
-                startPopsAnimTrans(mAnimationView);
+                if (mAnimationView instanceof RecyclerView) {
+                    startRecyclerViewAnimation((RecyclerView) mAnimationView);
+                } else {
+                    startPopsAnimTrans(mAnimationView);
+                }
             }
         }, 2000);
     }
@@ -155,7 +163,7 @@ public class AnimImageFilter extends BaseHardVideoFilter {
         public Rect rect;
     }
 
-    private static final int ANIMATION_DURATION = 1000;
+    private static final int ANIMATION_DURATION = 1500;
 
     // 属性动画-平移
     private void startPopsAnimTrans(final View view) {
@@ -164,9 +172,19 @@ public class AnimImageFilter extends BaseHardVideoFilter {
         ObjectAnimator scaleX = ObjectAnimator.ofFloat(view, "scaleX", 0.1f, 1f);
         ObjectAnimator scaleY = ObjectAnimator.ofFloat(view, "scaleY", 0.1f, 1f);
         ObjectAnimator objectAnimatorX = ObjectAnimator.ofFloat(view, "translationX", x);
-        animatorSet.playTogether(scaleX, scaleY, objectAnimatorX);
+        animatorSet.playTogether(objectAnimatorX);
         animatorSet.setDuration(ANIMATION_DURATION);
         animatorSet.start();
+    }
+
+    private void startRecyclerViewAnimation(final RecyclerView recyclerView) {
+        recyclerView.smoothScrollToPosition(1);
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                recyclerView.smoothScrollToPosition(2);
+            }
+        }, 2000);
     }
 
     public static Bitmap getViewCacheBitmap(View view) {
@@ -176,7 +194,6 @@ public class AnimImageFilter extends BaseHardVideoFilter {
             return null;
         }
         Bitmap emptyBitmap = Bitmap.createBitmap(bitmap);
-        bitmap.recycle();
         view.destroyDrawingCache();
         return emptyBitmap;
     }

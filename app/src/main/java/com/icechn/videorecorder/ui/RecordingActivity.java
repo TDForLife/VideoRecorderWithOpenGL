@@ -15,11 +15,15 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
+
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.viewpager.widget.ViewPager;
 
 import com.icechn.videorecorder.R;
 import com.icechn.videorecorder.client.RecorderClient;
@@ -31,6 +35,9 @@ import com.icechn.videorecorder.filter.softaudiofilter.SetVolumeAudioFilter;
 import com.icechn.videorecorder.model.MediaConfig;
 import com.icechn.videorecorder.model.RecordConfig;
 import com.icechn.videorecorder.model.Size;
+import com.icechn.videorecorder.test.CareLinearLayoutManager;
+import com.icechn.videorecorder.test.MyPagerAdapter;
+import com.icechn.videorecorder.test.MyRecyclerAdapter;
 import com.icechn.videorecorder.test.ViewToGLRenderer;
 import com.icechn.videorecorder.tools.DensityUtil;
 
@@ -52,8 +59,10 @@ public class RecordingActivity extends Activity implements TextureView.SurfaceTe
     private GLSurfaceView mGLSurfaceView;
     private AspectTextureView mTextureView;
     private Button startRecordButton;
-    private LinearLayout mAnimLayout;
+    private View mAnimLayout;
     private View mAnimIconView;
+    private RecyclerView mAnimRecyclerView;
+    private MyRecyclerAdapter mAdapter;
 
     // Config
     private boolean mStarted;
@@ -75,8 +84,17 @@ public class RecordingActivity extends Activity implements TextureView.SurfaceTe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_streaming);
 
-        mAnimLayout = findViewById(R.id.gl_layout);
-        mAnimIconView = findViewById(R.id.gl_icon_view);
+        mAnimLayout = findViewById(R.id.test_layout);
+        mAnimIconView = findViewById(R.id.test_anim_view);
+        mAnimRecyclerView = findViewById(R.id.test_anim_rv);
+        ArrayList<String> dataList = new ArrayList<>();
+        dataList.add("Android 1");
+        dataList.add("Android 2");
+        dataList.add("Android 3");
+        dataList.add("Android 4");
+        mAnimRecyclerView.setLayoutManager(new CareLinearLayoutManager(this, CareLinearLayoutManager.HORIZONTAL, false));
+        mAdapter  = new MyRecyclerAdapter(this, dataList);
+        mAnimRecyclerView.setAdapter(mAdapter);
 
         mTextureView = findViewById(R.id.preview_texture_view);
         mTextureView.setKeepScreenOn(true);
@@ -204,14 +222,13 @@ public class RecordingActivity extends Activity implements TextureView.SurfaceTe
         mAnimLayout.post(new Runnable() {
             @Override
             public void run() {
-                Log.d("zwt", "height - " + mAnimLayout.getHeight());
                 AnimImageFilter.ImageAnimationData animationData = new AnimImageFilter.ImageAnimationData();
-                int animLeft = 0;
-                int animTop = 0;
-                int animRight = mScreenWidth;
+                int animLeft = mAnimLayout.getLeft();
+                int animTop = mAnimLayout.getTop();
+                int animRight = animLeft + mAnimLayout.getWidth();
                 int animBottom = animTop + mAnimLayout.getHeight();
                 animationData.rect = new Rect(animLeft, animTop, animRight, animBottom);
-                AnimImageFilter animImageFilter = new AnimImageFilter(RecordingActivity.this, mAnimLayout, mAnimIconView, animationData);
+                AnimImageFilter animImageFilter = new AnimImageFilter(RecordingActivity.this, mAnimLayout, mAnimRecyclerView, animationData);
                 mRecorderClient.setHardVideoFilter(animImageFilter);
             }
         });
@@ -319,4 +336,17 @@ public class RecordingActivity extends Activity implements TextureView.SurfaceTe
         view.destroyDrawingCache();
         return emptyBitmap;
     }
+
+
+
+//    private void initViewPager() {
+//        ViewPager viewPager = findViewById(R.id.)
+//        ArrayList<View> aList = new ArrayList<View>();
+//        LayoutInflater li = getLayoutInflater();
+//        aList.add(li.inflate(R.layout.view_one,null,false));
+//        aList.add(li.inflate(R.layout.view_two,null,false));
+//        aList.add(li.inflate(R.layout.view_three,null,false));
+//        MyPagerAdapter mAdapter = new MyPagerAdapter(aList);
+//        vpager_one.setAdapter(mAdapter);
+//    }
 }

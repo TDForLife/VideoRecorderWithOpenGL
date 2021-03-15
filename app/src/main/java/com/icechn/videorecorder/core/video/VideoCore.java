@@ -51,12 +51,12 @@ public class VideoCore implements IVideoCore {
     private static final String TAG = "VideoCore";
 
     private final Object mSyncObj = new Object();
-    private final MediaMakerConfig mMediaMakerConfig;
-
     private final Object syncVideoChangeListener = new Object();
     private final Object syncPreview = new Object();
     private final Object syncIsLooping = new Object();
     private final Lock lockVideoFilter = new ReentrantLock(false);
+
+    private final MediaMakerConfig mMediaMakerConfig;
 
     private BaseHardVideoFilter mHardVideoFilter;
     private MediaCodec mDSTVideoEncoder;
@@ -300,9 +300,6 @@ public class VideoCore implements IVideoCore {
                             }
                             while (frameNum != 0) {
                                 cameraTexture.updateTexImage();
-//                                if (viewTexture != null) {
-//                                    viewTexture.updateTexImage();
-//                                }
                                 --frameNum;
                                 if (!dropNextFrame) {
                                     hasNewFrame = true;
@@ -319,18 +316,16 @@ public class VideoCore implements IVideoCore {
                 case WHAT_DRAW: {
                     long time = (Long) msg.obj;
                     long interval = time + loopingInterval - SystemClock.uptimeMillis();
-                    synchronized (syncIsLooping) {
-                        if (isPreviewing || isStreaming) {
-                            if (interval > 0) {
-                                videoGLHandler.sendMessageDelayed(videoGLHandler.obtainMessage(
-                                        VideoGLHandler.WHAT_DRAW,
-                                        SystemClock.uptimeMillis() + interval),
-                                        interval);
-                            } else {
-                                videoGLHandler.sendMessage(videoGLHandler.obtainMessage(
-                                        VideoGLHandler.WHAT_DRAW,
-                                        SystemClock.uptimeMillis() + loopingInterval));
-                            }
+                    if (isPreviewing || isStreaming) {
+                        if (interval > 0) {
+                            videoGLHandler.sendMessageDelayed(videoGLHandler.obtainMessage(
+                                    VideoGLHandler.WHAT_DRAW,
+                                    SystemClock.uptimeMillis() + interval),
+                                    interval);
+                        } else {
+                            videoGLHandler.sendMessage(videoGLHandler.obtainMessage(
+                                    VideoGLHandler.WHAT_DRAW,
+                                    SystemClock.uptimeMillis() + loopingInterval));
                         }
                     }
                     if (hasNewFrame) {
@@ -456,10 +451,8 @@ public class VideoCore implements IVideoCore {
             // 在此之前 OVERWATCH_TEXTURE_ID 纹理 ID 已经作为纹理传入 CameraTexture 接收 Camera 的预览数据了
             GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, OVERWATCH_CAMERA_TEXTURE_ID);
             GLES20.glUniform1i(offScreenGLWrapper.cam2dTextureLocation, 0);
-            synchronized (syncCameraBufferObj) {
-                GLHelper.enableVertex(offScreenGLWrapper.cam2dPositionLocation, offScreenGLWrapper.cam2dTextureCoordsLocation,
-                        shapeVerticesBuffer, camera2dTextureVerticesBuffer);
-            }
+            GLHelper.enableVertex(offScreenGLWrapper.cam2dPositionLocation, offScreenGLWrapper.cam2dTextureCoordsLocation,
+                    shapeVerticesBuffer, camera2dTextureVerticesBuffer);
             float[] cameraTextureMatrix = new float[16];
             cameraTexture.getTransformMatrix(cameraTextureMatrix);
             GLES20.glUniformMatrix4fv(offScreenGLWrapper.cam2dTextureMatrixLocation, 1, false, cameraTextureMatrix, 0);
@@ -467,7 +460,6 @@ public class VideoCore implements IVideoCore {
 
             doGLDraw();
 
-            GLES20.glFinish();
             GLHelper.disableVertex(offScreenGLWrapper.cam2dPositionLocation, offScreenGLWrapper.cam2dTextureCoordsLocation);
 
             GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0);
@@ -497,27 +489,21 @@ public class VideoCore implements IVideoCore {
 
         private void drawFrameBuffer() {
             GLHelper.makeCurrent(offScreenGLWrapper);
-            boolean isFilterLocked = lockVideoFilter();
-            if (isFilterLocked) {
-                if (mHardVideoFilter != innerVideoFilter) {
-                    if (innerVideoFilter != null) {
-                        innerVideoFilter.onDestroy();
-                    }
-                    innerVideoFilter = mHardVideoFilter;
-                    if (innerVideoFilter != null) {
-                        innerVideoFilter.onInit(mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
-                    }
-                }
+            if (mHardVideoFilter != innerVideoFilter) {
                 if (innerVideoFilter != null) {
-                    synchronized (syncCameraBufferObj) {
-                        innerVideoFilter.onDirectionUpdate(directionFlag);
-                        innerVideoFilter.onDraw(sample2DFrameBufferTexture, frameBuffer,
-                                shapeVerticesBuffer, cameraTextureVerticesBuffer);
-                    }
-                } else {
-                    drawOriginFrameBuffer();
+                    innerVideoFilter.onDestroy();
                 }
-                unlockVideoFilter();
+                innerVideoFilter = mHardVideoFilter;
+                if (innerVideoFilter != null) {
+                    innerVideoFilter.onInit(mMediaMakerConfig.videoWidth, mMediaMakerConfig.videoHeight);
+                }
+            }
+            if (innerVideoFilter != null) {
+                synchronized (syncCameraBufferObj) {
+                    innerVideoFilter.onDirectionUpdate(directionFlag);
+                    innerVideoFilter.onDraw(sample2DFrameBufferTexture, frameBuffer,
+                            shapeVerticesBuffer, cameraTextureVerticesBuffer);
+                }
             } else {
                 drawOriginFrameBuffer();
             }
@@ -566,8 +552,6 @@ public class VideoCore implements IVideoCore {
         }
 
         private void doGLDraw() {
-            GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-            GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
             GLES20.glDrawElements(GLES20.GL_TRIANGLES, drawIndexesBuffer.limit(), GLES20.GL_UNSIGNED_SHORT, drawIndexesBuffer);
         }
 
