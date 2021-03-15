@@ -26,6 +26,8 @@ import java.nio.FloatBuffer;
 
 public class AnimImageFilter extends BaseHardVideoFilter {
 
+    private static final String TAG = "anim";
+
     private int glProgram;
     private int glCamTextureLoc;
     private int glCamPositionLoc;
@@ -74,17 +76,6 @@ public class AnimImageFilter extends BaseHardVideoFilter {
             mImageTexture = new ImageTexture(outVideoWidth, outVideoHeight);
             mImageTexture.loadFromBitmap(initBitmap);
         }
-
-        mAnimationView.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                if (mAnimationView instanceof RecyclerView) {
-                    startRecyclerViewAnimation((RecyclerView) mAnimationView);
-                } else {
-                    startPopsAnimTrans(mAnimationView);
-                }
-            }
-        }, 2000);
     }
 
     @Override
@@ -163,34 +154,10 @@ public class AnimImageFilter extends BaseHardVideoFilter {
         public Rect rect;
     }
 
-    private static final int ANIMATION_DURATION = 1500;
-
-    // 属性动画-平移
-    private void startPopsAnimTrans(final View view) {
-        float[] x = {460f};
-        AnimatorSet animatorSet = new AnimatorSet();
-        ObjectAnimator scaleX = ObjectAnimator.ofFloat(view, "scaleX", 0.1f, 1f);
-        ObjectAnimator scaleY = ObjectAnimator.ofFloat(view, "scaleY", 0.1f, 1f);
-        ObjectAnimator objectAnimatorX = ObjectAnimator.ofFloat(view, "translationX", x);
-        animatorSet.playTogether(objectAnimatorX);
-        animatorSet.setDuration(ANIMATION_DURATION);
-        animatorSet.start();
-    }
-
-    private void startRecyclerViewAnimation(final RecyclerView recyclerView) {
-        recyclerView.smoothScrollToPosition(1);
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                recyclerView.smoothScrollToPosition(2);
-            }
-        }, 2000);
-    }
-
     public static Bitmap getViewCacheBitmap(View view) {
         Bitmap bitmap = view.getDrawingCache();
         if (bitmap == null) {
-            Log.d("zwt", "getViewCacheBitmap is null");
+            Log.d(TAG, "getViewCacheBitmap is null");
             return null;
         }
         Bitmap emptyBitmap = Bitmap.createBitmap(bitmap);

@@ -23,7 +23,7 @@ public class AudioSenderThread extends Thread {
         eInfo = new MediaCodec.BufferInfo();
         startTime = 0;
         dstAudioEncoder = encoder;
-        mWeakMuxer = new WeakReference<MediaMuxerWrapper>(muxer);
+        mWeakMuxer = new WeakReference<>(muxer);
     }
 
     private boolean shouldQuit = false;
@@ -48,19 +48,19 @@ public class AudioSenderThread extends Thread {
     public void run() {
         final MediaMuxerWrapper muxer = mWeakMuxer != null ? mWeakMuxer.get() : null;
         boolean isMuxerEnable = muxer != null;
-        Log.w("AudioSenderThread", "muxer enable:"+isMuxerEnable);
+        Log.w("AudioSenderThread", "muxer enable:" + isMuxerEnable);
 
         while (!shouldQuit) {
             int eobIndex = dstAudioEncoder.dequeueOutputBuffer(eInfo, WAIT_TIME);
             switch (eobIndex) {
                 case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
-                    Log.d("","AudioSenderThread,MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED");
+                    Log.d("", "AudioSenderThread,MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED");
                     break;
                 case MediaCodec.INFO_TRY_AGAIN_LATER:
-//                        Log.d("","AudioSenderThread,MediaCodec.INFO_TRY_AGAIN_LATER");
+                    Log.d("", "AudioSenderThread,MediaCodec.INFO_TRY_AGAIN_LATER");
                     break;
                 case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
-                    Log.d("","AudioSenderThread,MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:" +
+                    Log.d("", "AudioSenderThread,MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:" +
                             dstAudioEncoder.getOutputFormat().toString());
                     if (isMuxerEnable) {
                         //addTrack
@@ -71,7 +71,7 @@ public class AudioSenderThread extends Thread {
                     }
                     break;
                 default:
-                    Log.d("","AudioSenderThread,MediaCode,eobIndex=" + eobIndex);
+                    Log.d("", "AudioSenderThread,MediaCode,eobIndex=" + eobIndex);
                     if (startTime == 0) {
                         startTime = eInfo.presentationTimeUs / 1000;
                     }
@@ -85,6 +85,7 @@ public class AudioSenderThread extends Thread {
                         realData.limit(eInfo.offset + eInfo.size);
                         if (isMuxerEnable && mMuxerStarted) {
                             eInfo.presentationTimeUs = getPTSUs();
+                            Log.d("zwt", "");
                             muxer.writeSampleData(mTrackIndex, realData, eInfo);
                             prevOutputPTSUs = eInfo.presentationTimeUs;
                         }
@@ -103,8 +104,10 @@ public class AudioSenderThread extends Thread {
      * previous presentationTimeUs for writing
      */
     private long prevOutputPTSUs = 0;
+
     /**
      * get next encoding presentationTimeUs
+     *
      * @return
      */
     protected long getPTSUs() {

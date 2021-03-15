@@ -4,16 +4,10 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <FrameLayout
+    <com.icechn.videorecorder.ui.AspectTextureView
+        android:id="@+id/preview_texture_view"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/colorPrimary">
-
-        <com.icechn.videorecorder.ui.AspectTextureView
-            android:id="@+id/preview_texture_view"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent" />
-    </FrameLayout>
+        android:layout_height="match_parent" />
 
     <LinearLayout
         android:id="@+id/layout_btns"
@@ -24,7 +18,7 @@
         android:paddingBottom="5dp">
 
         <Button
-            android:id="@+id/btn_toggle"
+            android:id="@+id/toggle_record_btn"
             android:layout_width="match_parent"
             android:layout_height="60dp"
             android:layout_weight="1"
@@ -71,7 +65,6 @@
 
     </LinearLayout>
 
-
     <FrameLayout
         android:id="@+id/test_layout"
         android:layout_width="wrap_content"
@@ -79,7 +72,7 @@
         android:layout_centerHorizontal="true"
         android:layout_marginTop="44dp"
         android:background="@drawable/ai_im_creation_broad"
-        android:visibility="visible">
+        android:visibility="gone">
 
         <LinearLayout
             android:id="@+id/test_anim_view"
@@ -97,13 +90,6 @@
             android:layout_height="wrap_content"
             android:focusableInTouchMode="false" />
     </FrameLayout>
-
-    <androidx.viewpager.widget.ViewPager
-        android:id="@+id/anim_view_pager"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:visibility="gone" />
 
 
 </RelativeLayout>

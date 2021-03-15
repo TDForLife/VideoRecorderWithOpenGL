@@ -53,13 +53,13 @@ public class AudioCore {
     public void queueAudio(byte[] rawAudioFrame) {
         int targetIndex = (lastAudioQueueBuffIndex + 1) % orignAudioBuffs.length;
         if (orignAudioBuffs[targetIndex].isReadyToFill) {
-            Log.d("","queueAudio,accept ,targetIndex" + targetIndex);
+            Log.d("", "queueAudio,accept ,targetIndex" + targetIndex);
             System.arraycopy(rawAudioFrame, 0, orignAudioBuffs[targetIndex].buff, 0, mediaMakerConfig.audioRecorderBufferSize);
             orignAudioBuffs[targetIndex].isReadyToFill = false;
             lastAudioQueueBuffIndex = targetIndex;
             audioFilterHandler.sendMessage(audioFilterHandler.obtainMessage(AudioFilterHandler.WHAT_INCOMING_BUFF, targetIndex, 0));
         } else {
-            Log.d("","queueAudio,abandon,targetIndex" + targetIndex);
+            Log.d("", "queueAudio,abandon,targetIndex" + targetIndex);
         }
     }
 
@@ -74,7 +74,7 @@ public class AudioCore {
             dstAudioFormat = new MediaFormat();
             dstAudioEncoder = MediaCodecHelper.createAudioMediaCodec(mediaMakerConfig, dstAudioFormat);
             if (dstAudioEncoder == null) {
-                Log.e("","create Audio MediaCodec failed");
+                Log.e("", "create Audio MediaCodec failed");
                 return false;
             }
             //audio
@@ -124,7 +124,7 @@ public class AudioCore {
                 if (audioFilterHandlerThread != null) {
                     audioFilterHandlerThread.join();
                 }
-                if(audioSenderThread != null) {
+                if (audioSenderThread != null) {
                     audioSenderThread.quit();
                     audioSenderThread.join();
                 }
@@ -208,12 +208,12 @@ public class AudioCore {
             if (eibIndex >= 0) {
                 ByteBuffer dstAudioEncoderIBuffer = dstAudioEncoder.getInputBuffers()[eibIndex];
                 dstAudioEncoderIBuffer.position(0);
-                dstAudioEncoderIBuffer.put(filtered?filteredAudioBuff.buff:orignAudioBuff.buff, 0, orignAudioBuff.buff.length);
+                dstAudioEncoderIBuffer.put(filtered ? filteredAudioBuff.buff : orignAudioBuff.buff, 0, orignAudioBuff.buff.length);
                 dstAudioEncoder.queueInputBuffer(eibIndex, 0, orignAudioBuff.buff.length, nowTimeMs * 1000, 0);
             } else {
-                Log.d("","dstAudioEncoder.dequeueInputBuffer(-1)<0");
+                Log.d("", "dstAudioEncoder.dequeueInputBuffer(-1)<0");
             }
-            Log.d("","AudioFilterHandler,ProcessTime:" + (System.currentTimeMillis() - nowTimeMs));
+            Log.d("", "AudioFilterHandler,ProcessTime:" + (System.currentTimeMillis() - nowTimeMs));
         }
 
         /**

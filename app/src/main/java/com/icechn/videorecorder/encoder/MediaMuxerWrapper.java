@@ -80,6 +80,7 @@ public class MediaMuxerWrapper {
 	 * @return minus value indicate error
 	 */
 	public synchronized int addTrack(final MediaFormat format) {
+	    Log.d("zwt", "addTrack ... " + format.toString());
 		if (mIsStarted)
 			throw new IllegalStateException("muxer already started");
 		final int trackIx = mMediaMuxer.addTrack(format);
